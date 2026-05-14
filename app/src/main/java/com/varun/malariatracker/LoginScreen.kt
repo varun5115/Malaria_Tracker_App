@@ -23,7 +23,7 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(text = "Malaria Tracker Login", style = MaterialTheme.typography.headlineLarge)
-        Text(text = "Please enter patient ID to begin.", color = MaterialTheme.colorScheme.secondary)
+        Text(text = "Please enter person ID to begin.", color = MaterialTheme.colorScheme.secondary)
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -43,13 +43,13 @@ fun LoginScreen(
                     Toast.makeText(context, "Please enter an ID", Toast.LENGTH_SHORT).show()
                 } else {
                     // Check our CSV file to see if they exist!
-                    val isRegistered = CsvHelper.doesIdExist(userId)
+                    val isRegistered = CsvHelper.doesIdExist(context, userId)
 
                     if (isRegistered) {
-                        Toast.makeText(context, "Patient Found! Skipping to Symptoms.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Person Found! Skipping to Symptoms.", Toast.LENGTH_LONG).show()
                         onNavigateReturningUser(userId)
                     } else {
-                        Toast.makeText(context, "New Patient. Please register.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "New Person. Please register.", Toast.LENGTH_SHORT).show()
                         onNavigateNewUser(userId)
                     }
                 }

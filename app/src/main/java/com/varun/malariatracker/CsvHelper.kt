@@ -3,14 +3,16 @@ package com.varun.malariatracker // Ensure this matches your package name
 import android.os.Environment
 import java.io.File
 import java.io.FileWriter
+import android.content.Context
 
 object CsvHelper {
 
     // Helper function to write a row to a specific CSV file in the Downloads folder
-    fun saveToCsv(fileName: String, header: String, rowData: String) {
+    fun saveToCsv(context: Context, fileName: String, header: String, rowData: String) {
         try {
             // Target the public Downloads directory so you can extract it easily
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            //val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+              val downloadsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
             val file = File(downloadsDir, "$fileName.csv")
 
             // Check if we need to write the header row
@@ -28,11 +30,19 @@ object CsvHelper {
         }
     }
 
+     fun escapeCsv(value: String): String {
+
+        return "\"" +
+                value.replace("\"", "\"\"") +
+                "\""
+    }
+
     // Function to check if a Unique ID already exists in Demographics.csv
     // Function to check if a Unique ID already exists in Demographics.csv
-    fun doesIdExist(id: String): Boolean {
+    fun doesIdExist( context: Context, id: String): Boolean {
         try {
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            //val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val downloadsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
             val file = File(downloadsDir, "Demographics.csv")
 
             if (!file.exists()) return false

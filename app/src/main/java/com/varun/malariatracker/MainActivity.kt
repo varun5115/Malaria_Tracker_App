@@ -83,9 +83,9 @@ class MainActivity : ComponentActivity() {
                                 onNavigateNext = { travelCsvData ->
                                     // THIS IS THE ROLLBACK SAFETY NET!
                                     // We only write to the files if the user makes it this far.
-                                    CsvHelper.saveToCsv("Demographics", "ID,Name,Age,Gender,Mobile,Address,Language", pendingDemographics)
-                                    CsvHelper.saveToCsv("MedicalHistory", "ID,Episode,LastDiagnosed", pendingMedical)
-                                    CsvHelper.saveToCsv("TravelHistory", "ID,State,TravelledDates", travelCsvData)
+                                    CsvHelper.saveToCsv(context,"Demographics", "ID,Name,Age,Gender,Mobile,AltMobile,GovIDType,GovIDNumber,PresentAddr,PermAddr,Language", pendingDemographics)
+                                    CsvHelper.saveToCsv(context, "MedicalHistory", "ID,DiagnosedMalaria,TimesIn2Years,LastDetection,TreatmentPlaces,DiagnosisTestPerformed,SameDayReport,ReportMethods,MedicationPeriod,MedicineCourseCompleted", pendingMedical)
+                                    CsvHelper.saveToCsv(context,"TravelHistory", "ID,StayDuration,TravelledOutsideGoa,VisitedStates,HomeStayDuration,FeverBeforeComing", travelCsvData)
 
                                     Toast.makeText(context, "Initial Profile Saved!", Toast.LENGTH_SHORT).show()
 
