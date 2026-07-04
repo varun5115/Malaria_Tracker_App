@@ -14,11 +14,17 @@ import androidx.compose.ui.platform.LocalContext
 import com.varun.malariatracker.ui.theme.MalariaTrackerTheme
 
 enum class AppScreen {
+    HOME,
     LOGIN,
     DEMOGRAPHICS,
     MEDICAL_HISTORY,
     TRAVEL_HISTORY,
-    SYMPTOMS
+    SYMPTOMS,
+    CLINICIAN,
+    PATHOLOGY,
+    HEALTH_WORKER,
+    RESEARCH_LAB,
+    CONTRACTOR
 }
 
 class MainActivity : ComponentActivity() {
@@ -33,7 +39,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val context = LocalContext.current
 
-                    var currentScreen by remember { mutableStateOf(AppScreen.LOGIN) }
+                    var currentScreen by remember { mutableStateOf(AppScreen.HOME) }
                     var currentPatientId by remember { mutableStateOf("") }
                     var currentPatientName by remember { mutableStateOf("") }
 
@@ -42,6 +48,16 @@ class MainActivity : ComponentActivity() {
                     var pendingMedical by remember { mutableStateOf("") }
 
                     when (currentScreen) {
+                        AppScreen.HOME -> {
+                            StakeholderHomeScreen(
+                                onWorker = { currentScreen = AppScreen.LOGIN },
+                                onClinician = { currentScreen = AppScreen.CLINICIAN },
+                                onPathology = { currentScreen = AppScreen.PATHOLOGY },
+                                onHealthWorker = { currentScreen = AppScreen.HEALTH_WORKER },
+                                onResearchLab = { currentScreen = AppScreen.RESEARCH_LAB },
+                                onContractor = { currentScreen = AppScreen.CONTRACTOR }
+                            )
+                        }
                         AppScreen.LOGIN -> {
                             LoginScreen(
                                 onNavigateNewUser = { id ->
@@ -102,9 +118,24 @@ class MainActivity : ComponentActivity() {
                                     currentPatientName = ""
                                     pendingDemographics = ""
                                     pendingMedical = ""
-                                    currentScreen = AppScreen.LOGIN
+                                    currentScreen = AppScreen.HOME
                                 }
                             )
+                        }
+                        AppScreen.CLINICIAN -> {
+                            ClinicianScreen(onFinish = { currentScreen = AppScreen.HOME })
+                        }
+                        AppScreen.PATHOLOGY -> {
+                            PathologyScreen(onFinish = { currentScreen = AppScreen.HOME })
+                        }
+                        AppScreen.HEALTH_WORKER -> {
+                            HealthWorkerScreen(onFinish = { currentScreen = AppScreen.HOME })
+                        }
+                        AppScreen.RESEARCH_LAB -> {
+                            ResearchLabScreen(onFinish = { currentScreen = AppScreen.HOME })
+                        }
+                        AppScreen.CONTRACTOR -> {
+                            ContractorScreen(onFinish = { currentScreen = AppScreen.HOME })
                         }
                     }
                 }
