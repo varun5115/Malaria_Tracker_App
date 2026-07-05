@@ -3,14 +3,12 @@ package com.varun.malariatracker
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
 /** Pathology (Pathologist) questionnaire — saves one row to Pathology.csv. */
@@ -25,7 +23,7 @@ fun PathologyScreen(onFinish: () -> Unit) {
         var healthCentre by rememberSaveable { mutableStateOf("") }
         var address by rememberSaveable { mutableStateOf("") }
         var patientName by rememberSaveable { mutableStateOf("") }
-        var mobile by rememberSaveable { mutableStateOf("") }
+        var patientId by rememberSaveable { mutableStateOf("") }
 
         // Laboratory investigation
         var diagnosisTests by rememberSaveable { mutableStateOf(setOf<String>()) }
@@ -51,7 +49,7 @@ fun PathologyScreen(onFinish: () -> Unit) {
             LabeledDropdown(label = "Health centre name", options = HEALTH_CENTRES, selected = healthCentre, onSelect = { healthCentre = it })
             OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Address") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = patientName, onValueChange = { patientName = it }, label = { Text("Patient Name") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = mobile, onValueChange = { mobile = it }, label = { Text("Mobile Number") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = patientId, onValueChange = { patientId = it }, label = { Text("Patient ID") }, modifier = Modifier.fillMaxWidth())
 
             HorizontalDivider()
             Text(text = "Laboratory Investigation", style = MaterialTheme.typography.titleMedium)
@@ -101,15 +99,15 @@ fun PathologyScreen(onFinish: () -> Unit) {
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
-                    if (patientName.isBlank() || mobile.isBlank()) {
-                        Toast.makeText(context, "Please fill in Patient Name and Mobile", Toast.LENGTH_SHORT).show()
+                    if (patientName.isBlank() || patientId.isBlank()) {
+                        Toast.makeText(context, "Please fill in Patient Name and Patient ID", Toast.LENGTH_SHORT).show()
                     } else {
                         val rdtSpeciesValue = if (rdtResult == "Positive") withOther(rdtSpecies, rdtOtherSpecies) else ""
                         val microscopySpeciesValue = if (microscopyResult == "Positive") withOther(microscopySpecies, microscopyOtherSpecies) else ""
 
-                        val header = "Pathologist,HealthCentre,Address,PatientName,Mobile,DiagnosisTest,RDTResult,RDTSpecies,MicroscopyResult,MicroscopySpecies,SmearType"
+                        val header = "Pathologist,HealthCentre,Address,PatientName,PatientID,DiagnosisTest,RDTResult,RDTSpecies,MicroscopyResult,MicroscopySpecies,SmearType"
                         val rowData = listOf(
-                            pathologistName, healthCentre, address, patientName, mobile,
+                            pathologistName, healthCentre, address, patientName, patientId,
                             diagnosisTests.joined(), rdtResult, rdtSpeciesValue,
                             microscopyResult, microscopySpeciesValue, smearType
                         ).joinToString(",") { CsvHelper.escapeCsv(it) }

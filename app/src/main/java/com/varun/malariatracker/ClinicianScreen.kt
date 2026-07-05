@@ -26,7 +26,7 @@ fun ClinicianScreen(onFinish: () -> Unit) {
         var healthCentre by rememberSaveable { mutableStateOf("") }
         var address by rememberSaveable { mutableStateOf("") }
         var patientName by rememberSaveable { mutableStateOf("") }
-        var mobile by rememberSaveable { mutableStateOf("") }
+        var patientId by rememberSaveable { mutableStateOf("") }
 
         // Clinical assessment
         var bodyTemp by rememberSaveable { mutableStateOf("") }
@@ -56,7 +56,7 @@ fun ClinicianScreen(onFinish: () -> Unit) {
             LabeledDropdown(label = "Health centre name", options = HEALTH_CENTRES, selected = healthCentre, onSelect = { healthCentre = it })
             OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Address") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = patientName, onValueChange = { patientName = it }, label = { Text("Patient Name") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = mobile, onValueChange = { mobile = it }, label = { Text("Mobile number") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = patientId, onValueChange = { patientId = it }, label = { Text("Patient ID") }, modifier = Modifier.fillMaxWidth())
 
             HorizontalDivider()
             Text(text = "Clinical Assessment and Treatment", style = MaterialTheme.typography.titleMedium)
@@ -120,16 +120,16 @@ fun ClinicianScreen(onFinish: () -> Unit) {
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
-                    if (patientName.isBlank() || mobile.isBlank()) {
-                        Toast.makeText(context, "Please fill in Patient Name and Mobile", Toast.LENGTH_SHORT).show()
+                    if (patientName.isBlank() || patientId.isBlank()) {
+                        Toast.makeText(context, "Please fill in Patient Name and Patient ID", Toast.LENGTH_SHORT).show()
                     } else {
                         val symptomsValue = withOther(symptoms.joined(), otherSymptom)
                         val comorbiditiesValue = withOther(comorbidities.joined(), otherComorbidity)
                         val admittedTypeValue = if (admitted == "Yes") withOther(admittedType, otherAdmittedType) else ""
 
-                        val header = "MedicalOfficer,HealthCentre,Address,PatientName,Mobile,BodyTempC,FeverDuration,KeySymptoms,GeneralCondition,BloodPressure,Comorbidities,TreatmentPrescribed,Admitted,AdmittedType"
+                        val header = "MedicalOfficer,HealthCentre,Address,PatientName,PatientID,BodyTempC,FeverDuration,KeySymptoms,GeneralCondition,BloodPressure,Comorbidities,TreatmentPrescribed,Admitted,AdmittedType"
                         val rowData = listOf(
-                            officerName, healthCentre, address, patientName, mobile,
+                            officerName, healthCentre, address, patientName, patientId,
                             bodyTemp, feverDuration, symptomsValue, generalCondition, bloodPressure,
                             comorbiditiesValue, treatmentPrescribed, admitted, admittedTypeValue
                         ).joinToString(",") { CsvHelper.escapeCsv(it) }

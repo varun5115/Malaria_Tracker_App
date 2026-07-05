@@ -3,14 +3,12 @@ package com.varun.malariatracker
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
 /** Health Worker questionnaire (follow-up & adherence) — saves one row to HealthWorker.csv. */
@@ -25,7 +23,7 @@ fun HealthWorkerScreen(onFinish: () -> Unit) {
         var healthCentre by rememberSaveable { mutableStateOf("") }
         var address by rememberSaveable { mutableStateOf("") }
         var patientName by rememberSaveable { mutableStateOf("") }
-        var mobile by rememberSaveable { mutableStateOf("") }
+        var patientId by rememberSaveable { mutableStateOf("") }
 
         // Follow-up & adherence monitoring
         var followUpPf by rememberSaveable { mutableStateOf(setOf<String>()) }
@@ -50,7 +48,7 @@ fun HealthWorkerScreen(onFinish: () -> Unit) {
             LabeledDropdown(label = "Name of the health centre", options = HEALTH_CENTRES, selected = healthCentre, onSelect = { healthCentre = it })
             OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Address") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = patientName, onValueChange = { patientName = it }, label = { Text("Patient Name") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = mobile, onValueChange = { mobile = it }, label = { Text("Mobile No") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = patientId, onValueChange = { patientId = it }, label = { Text("Patient ID") }, modifier = Modifier.fillMaxWidth())
 
             HorizontalDivider()
             Text(text = "Follow-up & Adherence Monitoring", style = MaterialTheme.typography.titleMedium)
@@ -105,14 +103,14 @@ fun HealthWorkerScreen(onFinish: () -> Unit) {
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
-                    if (patientName.isBlank() || mobile.isBlank()) {
-                        Toast.makeText(context, "Please fill in Patient Name and Mobile", Toast.LENGTH_SHORT).show()
+                    if (patientName.isBlank() || patientId.isBlank()) {
+                        Toast.makeText(context, "Please fill in Patient Name and Patient ID", Toast.LENGTH_SHORT).show()
                     } else {
                         val reasonValue = if (nonAdherenceReason == "Other") withOther(nonAdherenceReason, otherReason) else nonAdherenceReason
 
-                        val header = "HealthWorker,HealthCentre,Address,PatientName,Mobile,FollowUpPf,FollowUpPv,PatientStatus,TreatmentDetails,NonAdherenceReason,FinalOutcome"
+                        val header = "HealthWorker,HealthCentre,Address,PatientName,PatientID,FollowUpPf,FollowUpPv,PatientStatus,TreatmentDetails,NonAdherenceReason,FinalOutcome"
                         val rowData = listOf(
-                            workerName, healthCentre, address, patientName, mobile,
+                            workerName, healthCentre, address, patientName, patientId,
                             followUpPf.joined(), followUpPv.joined(), patientStatus,
                             treatmentDetails, reasonValue, finalOutcome
                         ).joinToString(",") { CsvHelper.escapeCsv(it) }

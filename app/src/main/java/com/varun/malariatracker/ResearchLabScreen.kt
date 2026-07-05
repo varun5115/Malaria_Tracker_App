@@ -24,7 +24,7 @@ fun ResearchLabScreen(onFinish: () -> Unit) {
         var labName by rememberSaveable { mutableStateOf("") }
         var address by rememberSaveable { mutableStateOf("") }
         var patientName by rememberSaveable { mutableStateOf("") }
-        var mobile by rememberSaveable { mutableStateOf("") }
+        var patientId by rememberSaveable { mutableStateOf("") }
 
         // Sample collection for PCR and drug resistance
         var rdtResult by rememberSaveable { mutableStateOf("") }
@@ -53,7 +53,7 @@ fun ResearchLabScreen(onFinish: () -> Unit) {
             LabeledDropdown(label = "Name of the Research Laboratory", options = RESEARCH_LABS, selected = labName, onSelect = { labName = it })
             OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Address") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = patientName, onValueChange = { patientName = it }, label = { Text("Patient Name") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = mobile, onValueChange = { mobile = it }, label = { Text("Mobile No") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = patientId, onValueChange = { patientId = it }, label = { Text("Patient ID") }, modifier = Modifier.fillMaxWidth())
 
             HorizontalDivider()
             Text(text = "Sample Collection for PCR and Drug Resistance", style = MaterialTheme.typography.titleMedium)
@@ -101,15 +101,15 @@ fun ResearchLabScreen(onFinish: () -> Unit) {
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
-                    if (patientName.isBlank() || mobile.isBlank()) {
-                        Toast.makeText(context, "Please fill in Patient Name and Mobile", Toast.LENGTH_SHORT).show()
+                    if (patientName.isBlank() || patientId.isBlank()) {
+                        Toast.makeText(context, "Please fill in Patient Name and Patient ID", Toast.LENGTH_SHORT).show()
                     } else {
                         val rdtSpeciesValue = if (rdtResult == "Positive") withOther(rdtSpecies, rdtOtherSpecies) else ""
                         val microscopySpeciesValue = if (microscopyResult == "Positive") withOther(microscopySpecies, microscopyOtherSpecies) else ""
 
-                        val header = "ResearchLab,Address,PatientName,Mobile,RDTResult,RDTSpecies,MicroscopyResult,MicroscopySpecies,SmearType,ParasiteDensity,GametocytePresence,PvDrugResistance,PfDrugResistance,HrpDeletion"
+                        val header = "ResearchLab,Address,PatientName,PatientID,RDTResult,RDTSpecies,MicroscopyResult,MicroscopySpecies,SmearType,ParasiteDensity,GametocytePresence,PvDrugResistance,PfDrugResistance,HrpDeletion"
                         val rowData = listOf(
-                            labName, address, patientName, mobile,
+                            labName, address, patientName, patientId,
                             rdtResult, rdtSpeciesValue, microscopyResult, microscopySpeciesValue, smearType,
                             parasiteDensity, gametocyte, pvResistance.joined(), pfResistance.joined(), hrpDeletion
                         ).joinToString(",") { CsvHelper.escapeCsv(it) }

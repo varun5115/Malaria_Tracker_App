@@ -3,14 +3,12 @@ package com.varun.malariatracker
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
 /** Contractor questionnaire — saves one row to Contractor.csv. */
@@ -26,7 +24,7 @@ fun ContractorScreen(onFinish: () -> Unit) {
         var district by rememberSaveable { mutableStateOf("") }
         var area by rememberSaveable { mutableStateOf("") }
         var patientName by rememberSaveable { mutableStateOf("") }
-        var mobile by rememberSaveable { mutableStateOf("") }
+        var patientId by rememberSaveable { mutableStateOf("") }
 
         // Status
         var diagnosisStatus by rememberSaveable { mutableStateOf("") }
@@ -48,7 +46,7 @@ fun ContractorScreen(onFinish: () -> Unit) {
             OutlinedTextField(value = district, onValueChange = { district = it }, label = { Text("District") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = area, onValueChange = { area = it }, label = { Text("Area") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = patientName, onValueChange = { patientName = it }, label = { Text("Patient Name") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = mobile, onValueChange = { mobile = it }, label = { Text("Mobile No") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = patientId, onValueChange = { patientId = it }, label = { Text("Patient ID") }, modifier = Modifier.fillMaxWidth())
 
             HorizontalDivider()
 
@@ -74,14 +72,14 @@ fun ContractorScreen(onFinish: () -> Unit) {
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
-                    if (patientName.isBlank() || mobile.isBlank()) {
-                        Toast.makeText(context, "Please fill in Patient Name and Mobile", Toast.LENGTH_SHORT).show()
+                    if (patientName.isBlank() || patientId.isBlank()) {
+                        Toast.makeText(context, "Please fill in Patient Name and Patient ID", Toast.LENGTH_SHORT).show()
                     } else {
                         val diagnosisValue = if (diagnosisStatus == "Other") withOther(diagnosisStatus, otherDiagnosis) else diagnosisStatus
 
-                        val header = "ContractorName,ConstructionSite,District,Area,PatientName,Mobile,MalariaDiagnosisStatus,TreatmentStatus"
+                        val header = "ContractorName,ConstructionSite,District,Area,PatientName,PatientID,MalariaDiagnosisStatus,TreatmentStatus"
                         val rowData = listOf(
-                            contractorName, constructionSite, district, area, patientName, mobile,
+                            contractorName, constructionSite, district, area, patientName, patientId,
                             diagnosisValue, treatmentStatus
                         ).joinToString(",") { CsvHelper.escapeCsv(it) }
 
