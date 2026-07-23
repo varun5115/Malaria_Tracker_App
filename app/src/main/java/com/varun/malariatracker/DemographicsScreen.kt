@@ -25,12 +25,12 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults.TrailingIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DemographicsScreen(initialId: String, onNavigateNext: (String, String, String) -> Unit) {
+fun DemographicsScreen(initialId: String, initialMobile: String = "", onNavigateNext: (String, String, String) -> Unit) {
     var id by remember { mutableStateOf(initialId) }
     var name by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("Male") } // Default selection
-    var mobile by remember { mutableStateOf("") }
+    var mobile by remember { mutableStateOf(initialMobile) }
     var alternateMobile by remember { mutableStateOf("") }
 
     var govIdType by remember { mutableStateOf("Aadhaar") } // Default selection
@@ -165,10 +165,15 @@ fun DemographicsScreen(initialId: String, onNavigateNext: (String, String, Strin
         Button(
             modifier = Modifier.fillMaxWidth(),
             onClick = {
-                if (id.isBlank() || name.isBlank()) {
-                    Toast.makeText(context, "Please fill in ID and Name", Toast.LENGTH_SHORT).show()
-                } else if (CsvHelper.doesIdExist(context, id)) {
-                    Toast.makeText(context, "Error: This ID already exists!", Toast.LENGTH_SHORT).show()
+                val isAadhaar = govIdType.contains("Aadha", ignoreCase = true)
+                if (name.isBlank()) {
+                    Toast.makeText(context, "Please enter Name", Toast.LENGTH_SHORT).show()
+                } else if (!isValidPhone(mobile)) {
+                    Toast.makeText(context, "Enter a valid 10-digit Mobile Number", Toast.LENGTH_SHORT).show()
+                } else if (alternateMobile.isNotBlank() && !isValidPhone(alternateMobile)) {
+                    Toast.makeText(context, "Alternate number must be 10 digits", Toast.LENGTH_SHORT).show()
+                } else if (isAadhaar && govIdNumber.isNotBlank() && !isValidAadhaar(govIdNumber)) {
+                    Toast.makeText(context, "Aadhaar number must be 12 digits", Toast.LENGTH_SHORT).show()
                 } else {
                     // WE NO LONGER SAVE HERE! We just package the data string.
                     //val rowData = "$id,$name,$age,$gender,$mobile,$address,$language"
@@ -187,7 +192,7 @@ fun DemographicsScreen(initialId: String, onNavigateNext: (String, String, Strin
                             selectedLangs
                         }
 
-                    val rowData = "${CsvHelper.escapeCsv(id)}," + "${CsvHelper.escapeCsv(name)}," + "${CsvHelper.escapeCsv(age)}," + "${CsvHelper.escapeCsv(gender)}," + "${CsvHelper.escapeCsv(mobile)}," + "${CsvHelper.escapeCsv(alternateMobile)}," + "${CsvHelper.escapeCsv(govIdType)}," + "${CsvHelper.escapeCsv(govIdNumber)}," + "${CsvHelper.escapeCsv(presentAddress)}," + "${CsvHelper.escapeCsv(permanentAddress)}," + "${CsvHelper.escapeCsv(finalLanguage)}"
+                    val rowData = "${CsvHelper.escapeCsv(id)}," + "${CsvHelper.escapeCsv(name)}," + "${CsvHelper.escapeCsv(age)}," + "${CsvHelper.escapeCsv(gender)}," + "${CsvHelper.escapeCsv(cleanPhone(mobile))}," + "${CsvHelper.escapeCsv(cleanPhone(alternateMobile))}," + "${CsvHelper.escapeCsv(govIdType)}," + "${CsvHelper.escapeCsv(govIdNumber)}," + "${CsvHelper.escapeCsv(presentAddress)}," + "${CsvHelper.escapeCsv(permanentAddress)}," + "${CsvHelper.escapeCsv(finalLanguage)}"
 
 //                    val rowData = "$id,$name,$age,$gender,$mobile,$alternateMobile,$govIdType,$presentAddress,$permanentAddress,$language"
                     onNavigateNext(id, name, rowData)
