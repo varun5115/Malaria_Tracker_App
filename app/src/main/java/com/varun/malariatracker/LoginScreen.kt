@@ -42,7 +42,7 @@ fun LoginScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(text = "Malaria Tracker", style = MaterialTheme.typography.headlineLarge)
+        Text(text = "M3 Platform", style = MaterialTheme.typography.headlineLarge)
         Text(text = "Enter phone number to begin.", color = MaterialTheme.colorScheme.secondary)
 
         Spacer(modifier = Modifier.height(16.dp))
