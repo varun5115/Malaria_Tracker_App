@@ -39,8 +39,21 @@ fun ClinicianScreen(initialName: String = "", initialHealthCentre: String = "", 
         var otherComorbidity by rememberSaveable { mutableStateOf("") }
         var treatmentPrescribed by rememberSaveable { mutableStateOf("") }
         var admitted by rememberSaveable { mutableStateOf("") }
-        var admittedType by rememberSaveable { mutableStateOf("") }
-        var otherAdmittedType by rememberSaveable { mutableStateOf("") }
+        // A. If admitted = Yes
+        var admissionSpecies by rememberSaveable { mutableStateOf("") }
+        var admissionOtherSpecies by rememberSaveable { mutableStateOf("") }
+        var admissionSymptoms by rememberSaveable { mutableStateOf(setOf<String>()) }
+        var admissionOtherSymptom by rememberSaveable { mutableStateOf("") }
+        var admissionSeverity by rememberSaveable { mutableStateOf("") }
+        var admissionTreatmentCompleted by rememberSaveable { mutableStateOf("") }
+        var admissionReasonNotCompleted by rememberSaveable { mutableStateOf("") }
+        var dischargeDate by rememberSaveable { mutableStateOf("") }
+        var dischargeOutcome by rememberSaveable { mutableStateOf("") }
+        var dischargeOtherOutcome by rememberSaveable { mutableStateOf("") }
+        var remarks by rememberSaveable { mutableStateOf("") }
+        // B. If admitted = No
+        var notAdmittedTreatmentGiven by rememberSaveable { mutableStateOf("") }
+        var healthWorkerAssigned by rememberSaveable { mutableStateOf("") }
 
         Column(
             modifier = Modifier
@@ -103,16 +116,75 @@ fun ClinicianScreen(initialName: String = "", initialHealthCentre: String = "", 
                 selected = admitted,
                 onSelect = { admitted = it }
             )
+
             if (admitted == "Yes") {
+                HorizontalDivider()
+                Text(text = "A. If admitted = Yes", style = MaterialTheme.typography.titleMedium)
+
                 RadioGroup(
-                    title = "If Yes",
-                    options = listOf("Pf", "Pv", "Other"),
-                    selected = admittedType,
-                    onSelect = { admittedType = it }
+                    title = "Species / diagnosis at admission",
+                    options = listOf("P. falciparum (Pf)", "P. vivax (Pv)", "Mixed (Pf + Pv)", "Other"),
+                    selected = admissionSpecies,
+                    onSelect = { admissionSpecies = it }
                 )
-                if (admittedType == "Other") {
-                    OutlinedTextField(value = otherAdmittedType, onValueChange = { otherAdmittedType = it }, label = { Text("Specify") }, modifier = Modifier.fillMaxWidth())
+                if (admissionSpecies == "Other") {
+                    OutlinedTextField(value = admissionOtherSpecies, onValueChange = { admissionOtherSpecies = it }, label = { Text("Specify") }, modifier = Modifier.fillMaxWidth())
                 }
+
+                CheckboxGroup(
+                    title = "Symptoms at the time of admission (tick all that apply)",
+                    options = listOf("High fever", "Chills / rigors", "Severe headache", "Vomiting", "Abdominal pain", "Breathlessness / chest pain", "Confusion", "Severe weakness", "Jaundice", "Bleeding"),
+                    selected = admissionSymptoms,
+                    onToggle = { opt, on -> admissionSymptoms = admissionSymptoms.toggle(opt, on) }
+                )
+                OutlinedTextField(value = admissionOtherSymptom, onValueChange = { admissionOtherSymptom = it }, label = { Text("Other symptom (specify)") }, modifier = Modifier.fillMaxWidth())
+
+                RadioGroup(
+                    title = "Clinical severity at admission",
+                    options = listOf("Mild Malaria", "Severe Malaria"),
+                    selected = admissionSeverity,
+                    onSelect = { admissionSeverity = it }
+                )
+
+                RadioGroup(
+                    title = "Treatment completed during admission?",
+                    options = listOf("Yes – full course completed", "No – still on treatment at discharge / transfer", "No – stopped early", "Referred to District /GMC"),
+                    selected = admissionTreatmentCompleted,
+                    onSelect = { admissionTreatmentCompleted = it }
+                )
+                if (admissionTreatmentCompleted.isNotBlank() && admissionTreatmentCompleted != "Yes – full course completed") {
+                    OutlinedTextField(value = admissionReasonNotCompleted, onValueChange = { admissionReasonNotCompleted = it }, label = { Text("If not completed, reason") }, modifier = Modifier.fillMaxWidth())
+                }
+
+                OutlinedTextField(value = dischargeDate, onValueChange = { dischargeDate = it }, label = { Text("Date of discharge / transfer — DD/MM/YYYY") }, modifier = Modifier.fillMaxWidth())
+
+                RadioGroup(
+                    title = "Outcome at discharge",
+                    options = listOf("Recovered / symptom-free", "Improved, continue OPD medicines", "Referred District Hospital / GMC", "Other"),
+                    selected = dischargeOutcome,
+                    onSelect = { dischargeOutcome = it }
+                )
+                if (dischargeOutcome == "Other") {
+                    OutlinedTextField(value = dischargeOtherOutcome, onValueChange = { dischargeOtherOutcome = it }, label = { Text("Specify") }, modifier = Modifier.fillMaxWidth())
+                }
+
+                OutlinedTextField(value = remarks, onValueChange = { remarks = it }, label = { Text("Remarks") }, modifier = Modifier.fillMaxWidth())
+            } else if (admitted == "No") {
+                HorizontalDivider()
+                Text(text = "B. If admitted = No", style = MaterialTheme.typography.titleMedium)
+
+                RadioGroup(
+                    title = "Treatment given?",
+                    options = listOf("Yes", "No"),
+                    selected = notAdmittedTreatmentGiven,
+                    onSelect = { notAdmittedTreatmentGiven = it }
+                )
+                RadioGroup(
+                    title = "Health Worker assigned for follow-up?",
+                    options = listOf("Yes", "No"),
+                    selected = healthWorkerAssigned,
+                    onSelect = { healthWorkerAssigned = it }
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -125,13 +197,18 @@ fun ClinicianScreen(initialName: String = "", initialHealthCentre: String = "", 
                     } else {
                         val symptomsValue = withOther(symptoms.joined(), otherSymptom)
                         val comorbiditiesValue = withOther(comorbidities.joined(), otherComorbidity)
-                        val admittedTypeValue = if (admitted == "Yes") withOther(admittedType, otherAdmittedType) else ""
+                        // Admission (Section A) fields only meaningful when admitted = Yes; Section B when No.
+                        val admissionSpeciesValue = if (admitted == "Yes") withOther(admissionSpecies, admissionOtherSpecies) else ""
+                        val admissionSymptomsValue = if (admitted == "Yes") withOther(admissionSymptoms.joined(), admissionOtherSymptom) else ""
+                        val dischargeOutcomeValue = if (admitted == "Yes") withOther(dischargeOutcome, dischargeOtherOutcome) else ""
 
-                        val header = "MedicalOfficer,HealthCentre,Address,PatientName,PatientID,BodyTempC,FeverDuration,KeySymptoms,GeneralCondition,BloodPressure,Comorbidities,TreatmentPrescribed,Admitted,AdmittedType"
+                        val header = "MedicalOfficer,HealthCentre,Address,PatientName,PatientID,BodyTempC,FeverDuration,KeySymptoms,GeneralCondition,BloodPressure,Comorbidities,TreatmentPrescribed,Admitted,AdmissionSpecies,AdmissionSymptoms,AdmissionSeverity,AdmissionTreatmentCompleted,AdmissionReasonNotCompleted,DischargeDate,DischargeOutcome,Remarks,NotAdmittedTreatmentGiven,HealthWorkerAssigned"
                         val rowData = listOf(
                             officerName, healthCentre, address, patientName, patientId,
                             bodyTemp, feverDuration, symptomsValue, generalCondition, bloodPressure,
-                            comorbiditiesValue, treatmentPrescribed, admitted, admittedTypeValue
+                            comorbiditiesValue, treatmentPrescribed, admitted,
+                            admissionSpeciesValue, admissionSymptomsValue, admissionSeverity, admissionTreatmentCompleted, admissionReasonNotCompleted, dischargeDate, dischargeOutcomeValue, remarks,
+                            notAdmittedTreatmentGiven, healthWorkerAssigned
                         ).joinToString(",") { CsvHelper.escapeCsv(it) }
 
                         CsvHelper.saveToCsv(context, "Clinician", header, rowData)

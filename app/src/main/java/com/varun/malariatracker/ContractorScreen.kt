@@ -31,6 +31,12 @@ fun ContractorScreen(initialName: String = "", onFinish: () -> Unit) {
         var otherDiagnosis by rememberSaveable { mutableStateOf("") }
         var treatmentStatus by rememberSaveable { mutableStateOf("") }
 
+        // Section I – Travel details of worker (green additions, Sept 2026)
+        var travellerName by rememberSaveable { mutableStateOf("") }
+        var travellerContact by rememberSaveable { mutableStateOf("") }
+        var dateVisitOutside by rememberSaveable { mutableStateOf("") }
+        var dateReturnInside by rememberSaveable { mutableStateOf("") }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -67,6 +73,14 @@ fun ContractorScreen(initialName: String = "", onFinish: () -> Unit) {
                 onSelect = { treatmentStatus = it }
             )
 
+            HorizontalDivider()
+            Text(text = "Section I – Travel details of worker (in and outside Goa)", style = MaterialTheme.typography.titleMedium)
+
+            OutlinedTextField(value = travellerName, onValueChange = { travellerName = it }, label = { Text("Name of the traveller planning to visit outside Goa") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = travellerContact, onValueChange = { travellerContact = it }, label = { Text("Traveller Mobile / Name / ID") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = dateVisitOutside, onValueChange = { dateVisitOutside = it }, label = { Text("Date of visit outside Goa — DD/MM/YYYY") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = dateReturnInside, onValueChange = { dateReturnInside = it }, label = { Text("Date of return inside Goa — DD/MM/YYYY") }, modifier = Modifier.fillMaxWidth())
+
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
@@ -77,10 +91,11 @@ fun ContractorScreen(initialName: String = "", onFinish: () -> Unit) {
                     } else {
                         val diagnosisValue = if (diagnosisStatus == "Other") withOther(diagnosisStatus, otherDiagnosis) else diagnosisStatus
 
-                        val header = "ContractorName,ConstructionSite,District,Area,PatientName,PatientID,MalariaDiagnosisStatus,TreatmentStatus"
+                        val header = "ContractorName,ConstructionSite,District,Area,PatientName,PatientID,MalariaDiagnosisStatus,TreatmentStatus,TravellerName,TravellerContact,DateVisitOutsideGoa,DateReturnInsideGoa"
                         val rowData = listOf(
                             contractorName, constructionSite, district, area, patientName, patientId,
-                            diagnosisValue, treatmentStatus
+                            diagnosisValue, treatmentStatus,
+                            travellerName, travellerContact, dateVisitOutside, dateReturnInside
                         ).joinToString(",") { CsvHelper.escapeCsv(it) }
 
                         CsvHelper.saveToCsv(context, "Contractor", header, rowData)

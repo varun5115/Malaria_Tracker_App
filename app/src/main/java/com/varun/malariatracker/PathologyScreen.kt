@@ -34,6 +34,12 @@ fun PathologyScreen(initialName: String = "", initialHealthCentre: String = "", 
         var microscopySpecies by rememberSaveable { mutableStateOf("") }
         var microscopyOtherSpecies by rememberSaveable { mutableStateOf("") }
         var smearType by rememberSaveable { mutableStateOf("") }
+        // Scheduled follow-up slides (green additions, Sept 2026)
+        var slidesReceived by rememberSaveable { mutableStateOf("") }
+        var anySlidePositive by rememberSaveable { mutableStateOf("") }
+        var positiveSlideDay by rememberSaveable { mutableStateOf("") }
+        var nonReceiptReasons by rememberSaveable { mutableStateOf(setOf<String>()) }
+        var otherReason by rememberSaveable { mutableStateOf("") }
 
         Column(
             modifier = Modifier
@@ -94,6 +100,35 @@ fun PathologyScreen(initialName: String = "", initialHealthCentre: String = "", 
                 onSelect = { smearType = it }
             )
 
+            HorizontalDivider()
+            Text(text = "Scheduled Follow-up Slides", style = MaterialTheme.typography.titleMedium)
+
+            RadioGroup(
+                title = "Scheduled follow-up slides received?",
+                options = listOf("Yes", "No"),
+                selected = slidesReceived,
+                onSelect = { slidesReceived = it }
+            )
+            if (slidesReceived == "Yes") {
+                RadioGroup(
+                    title = "Did any follow-up day slide come positive for malaria?",
+                    options = listOf("Yes", "No"),
+                    selected = anySlidePositive,
+                    onSelect = { anySlidePositive = it }
+                )
+                if (anySlidePositive == "Yes") {
+                    OutlinedTextField(value = positiveSlideDay, onValueChange = { positiveSlideDay = it }, label = { Text("Which follow-up day (e.g. Day 7)") }, modifier = Modifier.fillMaxWidth())
+                }
+            } else if (slidesReceived == "No") {
+                CheckboxGroup(
+                    title = "Reason for non-receipt of slide",
+                    options = listOf("Patient not available / missed visit", "Patient left Goa / migrated", "Refused", "Slide broken / spoiled", "Not collected by worker"),
+                    selected = nonReceiptReasons,
+                    onToggle = { opt, on -> nonReceiptReasons = nonReceiptReasons.toggle(opt, on) }
+                )
+                OutlinedTextField(value = otherReason, onValueChange = { otherReason = it }, label = { Text("Other reason (specify)") }, modifier = Modifier.fillMaxWidth())
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
@@ -105,11 +140,13 @@ fun PathologyScreen(initialName: String = "", initialHealthCentre: String = "", 
                         val rdtSpeciesValue = if (rdtResult == "Positive") withOther(rdtSpecies, rdtOtherSpecies) else ""
                         val microscopySpeciesValue = if (microscopyResult == "Positive") withOther(microscopySpecies, microscopyOtherSpecies) else ""
 
-                        val header = "Pathologist,HealthCentre,Address,PatientName,PatientID,DiagnosisTest,RDTResult,RDTSpecies,MicroscopyResult,MicroscopySpecies,SmearType"
+                        val reasonValue = withOther(nonReceiptReasons.joined(), otherReason)
+                        val header = "Pathologist,HealthCentre,Address,PatientName,PatientID,DiagnosisTest,RDTResult,RDTSpecies,MicroscopyResult,MicroscopySpecies,SmearType,SlidesReceived,AnySlidePositive,PositiveSlideDay,SlideNonReceiptReason"
                         val rowData = listOf(
                             pathologistName, healthCentre, address, patientName, patientId,
                             diagnosisTests.joined(), rdtResult, rdtSpeciesValue,
-                            microscopyResult, microscopySpeciesValue, smearType
+                            microscopyResult, microscopySpeciesValue, smearType,
+                            slidesReceived, anySlidePositive, positiveSlideDay, reasonValue
                         ).joinToString(",") { CsvHelper.escapeCsv(it) }
 
                         CsvHelper.saveToCsv(context, "Pathology", header, rowData)

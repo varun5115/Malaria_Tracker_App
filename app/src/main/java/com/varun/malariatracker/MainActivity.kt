@@ -19,6 +19,7 @@ enum class AppScreen {
     DEMOGRAPHICS,
     MEDICAL_HISTORY,
     TRAVEL_HISTORY,
+    TRAVEL_PLAN,
     SYMPTOMS,
     CLINICIAN,
     PATHOLOGY,
@@ -125,8 +126,15 @@ class MainActivity : ComponentActivity() {
 
                                     Toast.makeText(context, "Profile saved! Patient ID: $currentPatientId", Toast.LENGTH_LONG).show()
 
-                                    currentScreen = AppScreen.SYMPTOMS
+                                    currentScreen = AppScreen.TRAVEL_PLAN
                                 }
+                            )
+                        }
+                        AppScreen.TRAVEL_PLAN -> {
+                            TravelPlanScreen(
+                                patientId = currentPatientId,
+                                patientName = currentPatientName,
+                                onNavigateNext = { currentScreen = AppScreen.SYMPTOMS }
                             )
                         }
                         AppScreen.SYMPTOMS -> {
