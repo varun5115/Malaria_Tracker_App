@@ -1,6 +1,7 @@
 package com.varun.malariatracker
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -22,6 +23,8 @@ import androidx.compose.ui.unit.dp
 fun ProfessionalRegistrationScreen(onDone: () -> Unit) {
     val context = LocalContext.current
     var role by rememberSaveable { mutableStateOf("") } // "" while still choosing a role
+    // Back from the registration form returns to the role list first.
+    BackHandler(enabled = role.isNotBlank()) { role = "" }
 
     if (role.isBlank()) {
         Column(
