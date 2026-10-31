@@ -2,7 +2,6 @@ package com.varun.malariatracker
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -12,46 +11,46 @@ import androidx.compose.ui.text.input.KeyboardType
 
 /** Clinician (Medical Officer) questionnaire — saves one row to Clinician.csv. */
 @Composable
-fun ClinicianScreen(initialName: String = "", initialHealthCentre: String = "", onFinish: () -> Unit) {
+fun ClinicianScreen(draftKey: String, initialName: String = "", initialHealthCentre: String = "", onFinish: () -> Unit) {
     // Bumping formKey re-keys the whole form below, resetting every field — used by "Clear form".
     var formKey by rememberSaveable { mutableStateOf(0) }
     key(formKey) {
         val context = LocalContext.current
-        var page by rememberSaveable { mutableStateOf(0) }
+        var page by rememberDraftPage(draftKey)
 
         // General & administrative
-        var officerName by rememberSaveable { mutableStateOf(initialName) }
-        var healthCentre by rememberSaveable { mutableStateOf(initialHealthCentre) }
-        var address by rememberSaveable { mutableStateOf("") }
-        var patientName by rememberSaveable { mutableStateOf("") }
-        var patientId by rememberSaveable { mutableStateOf("") }
+        var officerName by rememberDraft(draftKey, "officerName", initialName)
+        var healthCentre by rememberDraft(draftKey, "healthCentre", initialHealthCentre)
+        var address by rememberDraft(draftKey, "address")
+        var patientName by rememberDraft(draftKey, "patientName")
+        var patientMobile by rememberDraft(draftKey, "patientMobile")
 
         // Clinical assessment
-        var bodyTemp by rememberSaveable { mutableStateOf("") }
-        var feverDuration by rememberSaveable { mutableStateOf("") }
-        var symptoms by rememberSaveable { mutableStateOf(setOf<String>()) }
-        var otherSymptom by rememberSaveable { mutableStateOf("") }
-        var generalCondition by rememberSaveable { mutableStateOf("") }
-        var bloodPressure by rememberSaveable { mutableStateOf("") }
-        var comorbidities by rememberSaveable { mutableStateOf(setOf<String>()) }
-        var otherComorbidity by rememberSaveable { mutableStateOf("") }
-        var treatmentPrescribed by rememberSaveable { mutableStateOf("") }
-        var admitted by rememberSaveable { mutableStateOf("") }
+        var bodyTemp by rememberDraft(draftKey, "bodyTemp")
+        var feverDuration by rememberDraft(draftKey, "feverDuration")
+        var symptoms by rememberDraftSet(draftKey, "symptoms")
+        var otherSymptom by rememberDraft(draftKey, "otherSymptom")
+        var generalCondition by rememberDraft(draftKey, "generalCondition")
+        var bloodPressure by rememberDraft(draftKey, "bloodPressure")
+        var comorbidities by rememberDraftSet(draftKey, "comorbidities")
+        var otherComorbidity by rememberDraft(draftKey, "otherComorbidity")
+        var treatmentPrescribed by rememberDraft(draftKey, "treatmentPrescribed")
+        var admitted by rememberDraft(draftKey, "admitted")
         // A. If admitted = Yes
-        var admissionSpecies by rememberSaveable { mutableStateOf("") }
-        var admissionOtherSpecies by rememberSaveable { mutableStateOf("") }
-        var admissionSymptoms by rememberSaveable { mutableStateOf(setOf<String>()) }
-        var admissionOtherSymptom by rememberSaveable { mutableStateOf("") }
-        var admissionSeverity by rememberSaveable { mutableStateOf("") }
-        var admissionTreatmentCompleted by rememberSaveable { mutableStateOf("") }
-        var admissionReasonNotCompleted by rememberSaveable { mutableStateOf("") }
-        var dischargeDate by rememberSaveable { mutableStateOf("") }
-        var dischargeOutcome by rememberSaveable { mutableStateOf("") }
-        var dischargeOtherOutcome by rememberSaveable { mutableStateOf("") }
-        var remarks by rememberSaveable { mutableStateOf("") }
+        var admissionSpecies by rememberDraft(draftKey, "admissionSpecies")
+        var admissionOtherSpecies by rememberDraft(draftKey, "admissionOtherSpecies")
+        var admissionSymptoms by rememberDraftSet(draftKey, "admissionSymptoms")
+        var admissionOtherSymptom by rememberDraft(draftKey, "admissionOtherSymptom")
+        var admissionSeverity by rememberDraft(draftKey, "admissionSeverity")
+        var admissionTreatmentCompleted by rememberDraft(draftKey, "admissionTreatmentCompleted")
+        var admissionReasonNotCompleted by rememberDraft(draftKey, "admissionReasonNotCompleted")
+        var dischargeDate by rememberDraft(draftKey, "dischargeDate")
+        var dischargeOutcome by rememberDraft(draftKey, "dischargeOutcome")
+        var dischargeOtherOutcome by rememberDraft(draftKey, "dischargeOtherOutcome")
+        var remarks by rememberDraft(draftKey, "remarks")
         // B. If admitted = No
-        var notAdmittedTreatmentGiven by rememberSaveable { mutableStateOf("") }
-        var healthWorkerAssigned by rememberSaveable { mutableStateOf("") }
+        var notAdmittedTreatmentGiven by rememberDraft(draftKey, "notAdmittedTreatmentGiven")
+        var healthWorkerAssigned by rememberDraft(draftKey, "healthWorkerAssigned")
 
         val fullCourse = "Yes – full course completed"
 
@@ -61,9 +60,10 @@ fun ClinicianScreen(initialName: String = "", initialHealthCentre: String = "", 
             onPageChange = { page = it },
             finishLabel = "Save Record",
             validatePage = { p ->
-                if (p == 0 && (patientName.isBlank() || patientId.isBlank())) "Please fill in Patient Name and Patient ID" else null
+                if (p == 0) patientError(context, patientName, patientMobile) else null
             },
             onFinish = {
+                val linkedPatientId = CsvHelper.findWorkerByPhone(context, cleanPhone(patientMobile))?.patientId ?: ""
                 // Only the branch that applies is saved; the other branch is saved blank.
                 val isAdmitted = admitted == "Yes"
                 val notAdmitted = admitted == "No"
@@ -74,9 +74,9 @@ fun ClinicianScreen(initialName: String = "", initialHealthCentre: String = "", 
                 val comorbiditiesValue = withOther(comorbidities.joined(), otherComorbidity)
                 val reasonValue = if (isAdmitted && admissionTreatmentCompleted.isNotBlank() && admissionTreatmentCompleted != fullCourse) admissionReasonNotCompleted else ""
 
-                val header = "MedicalOfficer,HealthCentre,Address,PatientName,PatientID,BodyTempC,FeverDuration,KeySymptoms,GeneralCondition,BloodPressure,Comorbidities,TreatmentPrescribed,Admitted,AdmissionSpecies,AdmissionSymptoms,AdmissionSeverity,AdmissionTreatmentCompleted,AdmissionReasonNotCompleted,DischargeDate,DischargeOutcome,Remarks,NotAdmittedTreatmentGiven,HealthWorkerAssigned"
+                val header = "MedicalOfficer,HealthCentre,Address,PatientName,PatientMobile,PatientID,BodyTempC,FeverDuration,KeySymptoms,GeneralCondition,BloodPressure,Comorbidities,TreatmentPrescribed,Admitted,AdmissionSpecies,AdmissionSymptoms,AdmissionSeverity,AdmissionTreatmentCompleted,AdmissionReasonNotCompleted,DischargeDate,DischargeOutcome,Remarks,NotAdmittedTreatmentGiven,HealthWorkerAssigned"
                 val rowData = listOf(
-                    officerName, healthCentre, address, patientName, patientId,
+                    officerName, healthCentre, address, patientName, cleanPhone(patientMobile), linkedPatientId,
                     bodyTemp, feverDuration, symptomsValue, generalCondition, bloodPressure,
                     comorbiditiesValue, treatmentPrescribed, admitted,
                     ifAdmitted(withOther(admissionSpecies, admissionOtherSpecies)),
@@ -88,25 +88,26 @@ fun ClinicianScreen(initialName: String = "", initialHealthCentre: String = "", 
 
                 CsvHelper.saveToCsv(context, "Clinician", header, rowData)
                 Toast.makeText(context, "Clinician record saved!", Toast.LENGTH_SHORT).show()
+                Drafts.clear(context, draftKey)
                 onFinish()
             },
             header = { Text(text = "Clinician Questionnaire", style = MaterialTheme.typography.headlineMedium) },
             footer = {
-                OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = { formKey++ }) { Text("Clear form") }
+                OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = { Drafts.clear(context, draftKey); formKey++ }) { Text("Clear form") }
             }
         ) { p ->
             when (p) {
                 0 -> {
                     Text(text = "General & Administrative Information", style = MaterialTheme.typography.titleMedium)
-                    OutlinedTextField(value = officerName, onValueChange = { officerName = it }, label = { Text("Name of the Medical Officer") }, modifier = Modifier.fillMaxWidth())
-                    LabeledDropdown(label = "Health centre name", options = HEALTH_CENTRES, selected = healthCentre, onSelect = { healthCentre = it })
-                    OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Address") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = patientName, onValueChange = { patientName = it }, label = { Text("Patient Name") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = patientId, onValueChange = { patientId = it }, label = { Text("Patient ID") }, modifier = Modifier.fillMaxWidth())
+                    FormField(value = officerName, onValueChange = { officerName = it }, label = "Name of the Medical Officer")
+                    LabeledDropdown(label = "Facility Type", options = HEALTH_CENTRES, selected = healthCentre, onSelect = { healthCentre = it })
+                    FormField(value = address, onValueChange = { address = it }, label = "Address")
+                    FormField(value = patientName, onValueChange = { patientName = it }, label = "Patient Name")
+                    FormField(value = patientMobile, onValueChange = { patientMobile = it }, label = "Patient Mobile Number", keyboardType = KeyboardType.Phone)
                 }
                 1 -> {
                     Text(text = "Clinical Assessment and Treatment", style = MaterialTheme.typography.titleMedium)
-                    OutlinedTextField(value = bodyTemp, onValueChange = { bodyTemp = it }, label = { Text("1. Body temperature (°C)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
+                    FormField(value = bodyTemp, onValueChange = { bodyTemp = it }, label = "1. Body temperature (°C)", keyboardType = KeyboardType.Decimal)
                     RadioGroup(
                         title = "2. Duration of fever (as reported)",
                         options = listOf("< 24 hours", "1–3 days", "4–7 days", "> 7 days"),
@@ -119,7 +120,7 @@ fun ClinicianScreen(initialName: String = "", initialHealthCentre: String = "", 
                         selected = symptoms,
                         onToggle = { opt, on -> symptoms = symptoms.toggle(opt, on) }
                     )
-                    OutlinedTextField(value = otherSymptom, onValueChange = { otherSymptom = it }, label = { Text("Other symptoms (specify)") }, modifier = Modifier.fillMaxWidth())
+                    FormField(value = otherSymptom, onValueChange = { otherSymptom = it }, label = "Other symptoms (specify)")
                 }
                 2 -> {
                     RadioGroup(
@@ -128,15 +129,15 @@ fun ClinicianScreen(initialName: String = "", initialHealthCentre: String = "", 
                         selected = generalCondition,
                         onSelect = { generalCondition = it }
                     )
-                    OutlinedTextField(value = bloodPressure, onValueChange = { bloodPressure = it }, label = { Text("5. Blood pressure (mmHg)") }, modifier = Modifier.fillMaxWidth())
+                    FormField(value = bloodPressure, onValueChange = { bloodPressure = it }, label = "5. Blood pressure (mmHg)")
                     CheckboxGroup(
                         title = "6. Co-morbidities",
                         options = listOf("Diabetes", "Hypertension", "None"),
                         selected = comorbidities,
                         onToggle = { opt, on -> comorbidities = comorbidities.toggle(opt, on) }
                     )
-                    OutlinedTextField(value = otherComorbidity, onValueChange = { otherComorbidity = it }, label = { Text("Other co-morbidity (specify)") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = treatmentPrescribed, onValueChange = { treatmentPrescribed = it }, label = { Text("7. Treatment Prescribed") }, modifier = Modifier.fillMaxWidth())
+                    FormField(value = otherComorbidity, onValueChange = { otherComorbidity = it }, label = "Other co-morbidity (specify)")
+                    FormField(value = treatmentPrescribed, onValueChange = { treatmentPrescribed = it }, label = "7. Treatment Prescribed")
                 }
                 3 -> {
                     RadioGroup(
@@ -154,7 +155,7 @@ fun ClinicianScreen(initialName: String = "", initialHealthCentre: String = "", 
                             onSelect = { admissionSpecies = it }
                         )
                         if (admissionSpecies == "Other") {
-                            OutlinedTextField(value = admissionOtherSpecies, onValueChange = { admissionOtherSpecies = it }, label = { Text("Specify") }, modifier = Modifier.fillMaxWidth())
+                            FormField(value = admissionOtherSpecies, onValueChange = { admissionOtherSpecies = it }, label = "Specify")
                         }
                         CheckboxGroup(
                             title = "Symptoms at the time of admission (tick all that apply)",
@@ -162,7 +163,7 @@ fun ClinicianScreen(initialName: String = "", initialHealthCentre: String = "", 
                             selected = admissionSymptoms,
                             onToggle = { opt, on -> admissionSymptoms = admissionSymptoms.toggle(opt, on) }
                         )
-                        OutlinedTextField(value = admissionOtherSymptom, onValueChange = { admissionOtherSymptom = it }, label = { Text("Other symptom (specify)") }, modifier = Modifier.fillMaxWidth())
+                        FormField(value = admissionOtherSymptom, onValueChange = { admissionOtherSymptom = it }, label = "Other symptom (specify)")
                     } else if (admitted == "No") {
                         Text(text = "B. If admitted = No", style = MaterialTheme.typography.titleMedium)
                         RadioGroup(
@@ -194,9 +195,9 @@ fun ClinicianScreen(initialName: String = "", initialHealthCentre: String = "", 
                         onSelect = { admissionTreatmentCompleted = it }
                     )
                     if (admissionTreatmentCompleted.isNotBlank() && admissionTreatmentCompleted != fullCourse) {
-                        OutlinedTextField(value = admissionReasonNotCompleted, onValueChange = { admissionReasonNotCompleted = it }, label = { Text("If not completed, reason") }, modifier = Modifier.fillMaxWidth())
+                        FormField(value = admissionReasonNotCompleted, onValueChange = { admissionReasonNotCompleted = it }, label = "If not completed, reason")
                     }
-                    OutlinedTextField(value = dischargeDate, onValueChange = { dischargeDate = it }, label = { Text("Date of discharge / transfer — DD/MM/YYYY") }, modifier = Modifier.fillMaxWidth())
+                    FormField(value = dischargeDate, onValueChange = { dischargeDate = it }, label = "Date of discharge / transfer — DD/MM/YYYY")
                     RadioGroup(
                         title = "Outcome at discharge",
                         options = listOf("Recovered / symptom-free", "Improved, continue OPD medicines", "Referred District Hospital / GMC", "Other"),
@@ -204,9 +205,9 @@ fun ClinicianScreen(initialName: String = "", initialHealthCentre: String = "", 
                         onSelect = { dischargeOutcome = it }
                     )
                     if (dischargeOutcome == "Other") {
-                        OutlinedTextField(value = dischargeOtherOutcome, onValueChange = { dischargeOtherOutcome = it }, label = { Text("Specify") }, modifier = Modifier.fillMaxWidth())
+                        FormField(value = dischargeOtherOutcome, onValueChange = { dischargeOtherOutcome = it }, label = "Specify")
                     }
-                    OutlinedTextField(value = remarks, onValueChange = { remarks = it }, label = { Text("Remarks") }, modifier = Modifier.fillMaxWidth())
+                    FormField(value = remarks, onValueChange = { remarks = it }, label = "Remarks")
                 }
             }
         }

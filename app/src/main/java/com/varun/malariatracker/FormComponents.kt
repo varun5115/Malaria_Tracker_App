@@ -1,5 +1,6 @@
 package com.varun.malariatracker
 
+import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
@@ -7,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material3.ExposedDropdownMenuDefaults.TrailingIcon
@@ -15,6 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
 // Shared option lists pulled from the questionnaire. These are placeholders for the
@@ -37,7 +41,8 @@ fun LabeledDropdown(
     options: List<String>,
     selected: String,
     onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box(modifier = modifier.fillMaxWidth()) {
@@ -45,6 +50,7 @@ fun LabeledDropdown(
             value = selected,
             onValueChange = {},
             readOnly = true,
+            enabled = enabled,
             label = { Text(label) },
             trailingIcon = { TrailingIcon(expanded = expanded) },
             modifier = Modifier.fillMaxWidth()
@@ -54,8 +60,31 @@ fun LabeledDropdown(
                 DropdownMenuItem(text = { Text(opt) }, onClick = { onSelect(opt); expanded = false })
             }
         }
-        IconButton(onClick = { expanded = true }, modifier = Modifier.matchParentSize()) {}
+        IconButton(onClick = { expanded = true }, enabled = enabled, modifier = Modifier.matchParentSize()) {}
     }
+}
+
+/**
+ * Single-line text field used across the forms. The keyboard's action key is "Next",
+ * which moves to the following field.
+ */
+@Composable
+fun FormField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    enabled: Boolean = true
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        enabled = enabled,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.Next),
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
 /** Single-choice question rendered as a vertical group of radio buttons. */
@@ -64,7 +93,8 @@ fun RadioGroup(
     title: String,
     options: List<String>,
     selected: String,
-    onSelect: (String) -> Unit
+    onSelect: (String) -> Unit,
+    enabled: Boolean = true
 ) {
     Text(text = title, style = MaterialTheme.typography.bodyLarge)
     Column(modifier = Modifier.selectableGroup()) {
@@ -74,9 +104,9 @@ fun RadioGroup(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .selectable(selected = selected == opt, onClick = { onSelect(opt) }, role = Role.RadioButton)
+                    .selectable(selected = selected == opt, onClick = { onSelect(opt) }, enabled = enabled, role = Role.RadioButton)
             ) {
-                RadioButton(selected = selected == opt, onClick = null)
+                RadioButton(selected = selected == opt, onClick = null, enabled = enabled)
                 Text(opt, modifier = Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp))
             }
         }
@@ -93,7 +123,8 @@ fun CheckboxGroup(
     title: String,
     options: List<String>,
     selected: Set<String>,
-    onToggle: (String, Boolean) -> Unit
+    onToggle: (String, Boolean) -> Unit,
+    enabled: Boolean = true
 ) {
     Text(text = title, style = MaterialTheme.typography.bodyLarge)
     options.forEach { opt ->
@@ -102,9 +133,9 @@ fun CheckboxGroup(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .toggleable(value = opt in selected, onValueChange = { onToggle(opt, it) }, role = Role.Checkbox)
+                .toggleable(value = opt in selected, onValueChange = { onToggle(opt, it) }, enabled = enabled, role = Role.Checkbox)
         ) {
-            Checkbox(checked = opt in selected, onCheckedChange = null)
+            Checkbox(checked = opt in selected, onCheckedChange = null, enabled = enabled)
             Text(opt, modifier = Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp))
         }
     }
@@ -136,11 +167,15 @@ fun FormPager(
     finishLabel: String,
     onFinish: () -> Unit,
     validatePage: (Int) -> String? = { null },
+    nextLabel: (Int) -> String = { "Next" },
+    onPageComplete: (Int) -> Unit = {},
     header: @Composable ColumnScope.() -> Unit,
     footer: @Composable ColumnScope.() -> Unit = {},
     content: @Composable ColumnScope.(Int) -> Unit
 ) {
     val context = LocalContext.current
+    // A drafted page index can point past the end if the page count has since shrunk.
+    val page = page.coerceIn(0, pageCount - 1)
     val scroll = rememberScrollState()
     LaunchedEffect(page) { scroll.scrollTo(0) }
     // Back steps to the previous page before it leaves the screen.
@@ -174,11 +209,14 @@ fun FormPager(
                 when {
                     error != null -> Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
                     isLast -> onFinish()
-                    else -> onPageChange(page + 1)
+                    else -> {
+                        onPageComplete(page)
+                        onPageChange(page + 1)
+                    }
                 }
             }
         ) {
-            Text(if (isLast) finishLabel else "Next")
+            Text(if (isLast) finishLabel else nextLabel(page))
         }
         if (page > 0) {
             OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = { onPageChange(page - 1) }) {
@@ -206,6 +244,17 @@ fun cleanPhone(raw: String): String = raw.filter { !it.isWhitespace() }
 /** Exactly 10 digits after removing whitespace. */
 fun isValidPhone(raw: String): Boolean =
     cleanPhone(raw).let { it.length == 10 && it.all(Char::isDigit) }
+
+/**
+ * Validates the patient fields on professional forms: a name, a 10-digit mobile, and that
+ * mobile must belong to a registered worker. Returns the error to show, or null if valid.
+ */
+fun patientError(context: Context, name: String, mobile: String): String? = when {
+    name.isBlank() -> "Please fill in Patient Name"
+    !isValidPhone(mobile) -> "Enter a valid 10-digit patient mobile number"
+    CsvHelper.findWorkerByPhone(context, cleanPhone(mobile)) == null -> "This mobile number is not registered"
+    else -> null
+}
 
 /** Exactly 12 digits after removing whitespace (Aadhaar). */
 fun isValidAadhaar(raw: String): Boolean =

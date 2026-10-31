@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun LoginScreen(
     onNewWorker: (phone: String) -> Unit,
-    onReturningWorker: (patientId: String) -> Unit,
+    onReturningWorker: (phone: String, worker: CsvHelper.WorkerRecord) -> Unit,
     onProfessionalLogin: (role: String, phone: String) -> Unit,
     onRegisterProfessional: () -> Unit
 ) {
@@ -63,15 +63,15 @@ fun LoginScreen(
                     return@Button
                 }
                 val p = cleanPhone(phone)
-                val workerId = CsvHelper.findWorkerByPhone(context, p)
+                val worker = CsvHelper.findWorkerByPhone(context, p)
                 val roles = CsvHelper.findProfessionalRoles(context, p)
                 val matches = buildList {
-                    if (workerId != null) add("Worker")
+                    if (worker != null) add("Worker")
                     addAll(roles)
                 }
                 when {
                     matches.isEmpty() -> onNewWorker(p)
-                    matches.size == 1 -> routeTo(matches.first(), workerId, p, onReturningWorker, onProfessionalLogin)
+                    matches.size == 1 -> routeTo(matches.first(), worker, p, onReturningWorker, onProfessionalLogin)
                     else -> chooser = matches // ambiguous -> let them pick
                 }
             }
@@ -109,13 +109,13 @@ fun LoginScreen(
 
 private fun routeTo(
     role: String,
-    workerId: String?,
+    worker: CsvHelper.WorkerRecord?,
     phone: String,
-    onReturningWorker: (String) -> Unit,
+    onReturningWorker: (String, CsvHelper.WorkerRecord) -> Unit,
     onProfessionalLogin: (String, String) -> Unit
 ) {
     if (role == "Worker") {
-        if (workerId != null) onReturningWorker(workerId)
+        if (worker != null) onReturningWorker(phone, worker)
     } else {
         onProfessionalLogin(role, phone)
     }

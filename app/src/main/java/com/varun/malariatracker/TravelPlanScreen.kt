@@ -1,99 +1,85 @@
 package com.varun.malariatracker
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 
 /**
- * Section V – Travel in and outside Goa (planned/future travel).
- * A worker-flow screen; saves one row to TravelPlan.csv keyed by the patient's ID.
+ * Section V – Travel in and outside Goa (planned/future travel). The row is kept in the
+ * draft and written to TravelPlan.csv when the proforma is completed.
  */
 @Composable
-fun TravelPlanScreen(patientId: String, patientName: String, onNavigateNext: () -> Unit) {
+fun TravelPlanScreen(draftKey: String, patientId: String, patientName: String, onNavigateNext: () -> Unit) {
     val context = LocalContext.current
 
-    var planningToVisit by rememberSaveable { mutableStateOf("") }
-    var departureDate by rememberSaveable { mutableStateOf("") }
-    var returnDate by rememberSaveable { mutableStateOf("") }
-    var placesVisited by rememberSaveable { mutableStateOf("") }
-    var feverOrMalaria by rememberSaveable { mutableStateOf("") }
-    var treatmentGiven by rememberSaveable { mutableStateOf("") }
-    var fullCourseCompleted by rememberSaveable { mutableStateOf("") }
-    var placeOfTreatment by rememberSaveable { mutableStateOf("") }
+    var planningToVisit by rememberDraft(draftKey, "plan.planning")
+    var departureDate by rememberDraft(draftKey, "plan.departure")
+    var returnDate by rememberDraft(draftKey, "plan.return")
+    var placesVisited by rememberDraft(draftKey, "plan.places")
+    var feverOrMalaria by rememberDraft(draftKey, "plan.fever")
+    var treatmentGiven by rememberDraft(draftKey, "plan.treatment")
+    var fullCourseCompleted by rememberDraft(draftKey, "plan.fullCourse")
+    var placeOfTreatment by rememberDraft(draftKey, "plan.placeOfTreatment")
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    FormPager(
+        pageCount = 1,
+        page = 0,
+        onPageChange = {},
+        finishLabel = "Continue",
+        onFinish = {
+            // Answers to hidden questions are saved blank.
+            val planning = planningToVisit == "Yes"
+            val fever = planning && feverOrMalaria == "Yes"
+            val treated = fever && treatmentGiven == "Yes"
+            val rowData = listOf(
+                patientId, planningToVisit,
+                if (planning) departureDate else "", if (planning) returnDate else "", if (planning) placesVisited else "",
+                if (planning) feverOrMalaria else "", if (fever) treatmentGiven else "",
+                if (treated) fullCourseCompleted else "", if (fever) placeOfTreatment else ""
+            ).joinToString(",") { CsvHelper.escapeCsv(it) }
+            Drafts.put(context, draftKey, "row:TravelPlan", rowData)
+            onNavigateNext()
+        },
+        header = {
+            Text(text = "Section V – Travel in and outside Goa", style = MaterialTheme.typography.headlineMedium)
+            Text(text = "Patient: $patientName", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Text(text = "ID: $patientId", color = MaterialTheme.colorScheme.secondary)
+        }
     ) {
-        Text(text = "Section V – Travel in and outside Goa", style = MaterialTheme.typography.headlineMedium)
-        Text(text = "Patient: $patientName", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-        Text(text = "ID: $patientId", color = MaterialTheme.colorScheme.secondary)
-
         RadioGroup(
             title = "Are you planning to visit outside Goa?",
             options = listOf("Yes", "No"),
             selected = planningToVisit,
             onSelect = { planningToVisit = it }
         )
-
         if (planningToVisit == "Yes") {
-            OutlinedTextField(value = departureDate, onValueChange = { departureDate = it }, label = { Text("Date of departure (Out of Goa) — DD/MM/YYYY") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = returnDate, onValueChange = { returnDate = it }, label = { Text("Date of return (Into Goa) — DD/MM/YYYY") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = placesVisited, onValueChange = { placesVisited = it }, label = { Text("Place(s) / State(s) visited") }, modifier = Modifier.fillMaxWidth())
-
+            FormField(value = departureDate, onValueChange = { departureDate = it }, label = "If yes, Date of departure (Out of Goa) — DD/MM/YYYY")
+            FormField(value = returnDate, onValueChange = { returnDate = it }, label = "Date of return back (Into Goa) — DD/MM/YYYY")
+            FormField(value = placesVisited, onValueChange = { placesVisited = it }, label = "Place(s) / State(s) visited")
             RadioGroup(
-                title = "During this travel, did you have fever or were you diagnosed with malaria?",
+                title = "During this travel outside Goa, did you have fever or were you diagnosed with malaria?",
                 options = listOf("Yes", "No"),
                 selected = feverOrMalaria,
                 onSelect = { feverOrMalaria = it }
             )
-
             if (feverOrMalaria == "Yes") {
                 RadioGroup(
-                    title = "Was treatment given?",
+                    title = "If yes (fever/malaria), was treatment given?",
                     options = listOf("Yes", "No"),
                     selected = treatmentGiven,
                     onSelect = { treatmentGiven = it }
                 )
                 if (treatmentGiven == "Yes") {
                     RadioGroup(
-                        title = "Was the full course of medicines completed?",
+                        title = "If treatment given, was the full course of medicines completed?",
                         options = listOf("Yes", "No"),
                         selected = fullCourseCompleted,
                         onSelect = { fullCourseCompleted = it }
                     )
                 }
-                OutlinedTextField(value = placeOfTreatment, onValueChange = { placeOfTreatment = it }, label = { Text("Place of treatment (if any)") }, modifier = Modifier.fillMaxWidth())
+                FormField(value = placeOfTreatment, onValueChange = { placeOfTreatment = it }, label = "Place of treatment (if any)")
             }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = {
-                val header = "ID,PlanningToVisit,DepartureDate,ReturnDate,PlacesVisited,FeverOrMalaria,TreatmentGiven,FullCourseCompleted,PlaceOfTreatment"
-                val rowData = listOf(
-                    patientId, planningToVisit, departureDate, returnDate, placesVisited,
-                    feverOrMalaria, treatmentGiven, fullCourseCompleted, placeOfTreatment
-                ).joinToString(",") { CsvHelper.escapeCsv(it) }
-
-                CsvHelper.saveToCsv(context, "TravelPlan", header, rowData)
-                Toast.makeText(context, "Travel details saved!", Toast.LENGTH_SHORT).show()
-                onNavigateNext()
-            }
-        ) {
-            Text("Continue")
         }
     }
 }

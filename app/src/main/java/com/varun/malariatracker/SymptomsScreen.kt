@@ -1,27 +1,26 @@
 package com.varun.malariatracker
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 
-/** Section III – present clinical details. Saves one row to Symptoms.csv per visit. */
+/**
+ * Section III – present clinical details. Builds one Symptoms row and hands it to
+ * [onFinish]; MainActivity saves it (completing the proforma, or as a new visit).
+ */
 @Composable
-fun SymptomsScreen(patientId: String, patientName: String, onFinish: () -> Unit) {
-    val context = LocalContext.current
-    var page by rememberSaveable { mutableStateOf(0) }
+fun SymptomsScreen(draftKey: String, patientId: String, patientName: String, onFinish: (rowData: String) -> Unit) {
+    var page by rememberDraftPage(draftKey, "sym.page")
 
-    var feverToday by rememberSaveable { mutableStateOf("") }
-    var temperature by rememberSaveable { mutableStateOf("") }
-    var feverDuration by rememberSaveable { mutableStateOf("") }
+    var feverToday by rememberDraft(draftKey, "sym.fever")
+    var temperature by rememberDraft(draftKey, "sym.temperature")
+    var feverDuration by rememberDraft(draftKey, "sym.duration")
     val symptomOptions = listOf("Chills/shivering", "Headache", "Sweating", "Body ache", "Nausea/vomiting", "Weakness/fatigue", "No other symptoms")
-    var associatedSymptoms by rememberSaveable { mutableStateOf(setOf<String>()) }
-    var illnessDate by rememberSaveable { mutableStateOf("") }
-    var breathingDifficulty by rememberSaveable { mutableStateOf("") }
-    var ableForTesting by rememberSaveable { mutableStateOf("") }
+    var associatedSymptoms by rememberDraftSet(draftKey, "sym.symptoms")
+    var illnessDate by rememberDraft(draftKey, "sym.onset")
+    var breathingDifficulty by rememberDraft(draftKey, "sym.breathing")
+    var ableForTesting by rememberDraft(draftKey, "sym.testing")
 
     FormPager(
         pageCount = 2,
@@ -30,19 +29,13 @@ fun SymptomsScreen(patientId: String, patientName: String, onFinish: () -> Unit)
         finishLabel = "Save & Finish",
         validatePage = { p -> if (p == 0 && associatedSymptoms.isEmpty()) "Please select at least one symptom" else null },
         onFinish = {
-            val entryId = "${patientId}_${System.currentTimeMillis()}"
             val timestamp = System.currentTimeMillis()
             val temp = if (feverToday == "Yes") temperature else ""
-
-            val header = "EntryID,Timestamp,PatientID,FeverToday,Temperature,FeverDuration,AssociatedSymptoms,IllnessDate,BreathingDifficulty,AbleForTesting"
             val rowData = listOf(
-                entryId, timestamp.toString(), patientId, feverToday, temp, feverDuration,
+                "${patientId}_$timestamp", timestamp.toString(), patientId, feverToday, temp, feverDuration,
                 joinInOrder(symptomOptions, associatedSymptoms), illnessDate, breathingDifficulty, ableForTesting
             ).joinToString(",") { CsvHelper.escapeCsv(it) }
-
-            CsvHelper.saveToCsv(context, "Symptoms", header, rowData)
-            Toast.makeText(context, "Patient Profile Complete!", Toast.LENGTH_LONG).show()
-            onFinish()
+            onFinish(rowData)
         },
         header = {
             Text(text = "Symptoms Entry", style = MaterialTheme.typography.headlineMedium)
@@ -59,11 +52,11 @@ fun SymptomsScreen(patientId: String, patientName: String, onFinish: () -> Unit)
                     onSelect = { feverToday = it }
                 )
                 if (feverToday == "Yes") {
-                    OutlinedTextField(value = temperature, onValueChange = { temperature = it }, label = { Text("2. Measured temperature (if known)") }, modifier = Modifier.fillMaxWidth())
+                    FormField(value = temperature, onValueChange = { temperature = it }, label = "2. If yes, measured temperature (if known)", keyboardType = KeyboardType.Decimal)
                 }
                 RadioGroup(
                     title = "3. Duration of fever",
-                    options = listOf("Less than 24 hours", "1–3 days", "More than 3 days", "Not required"),
+                    options = listOf("24 hours", "1–3 days", "More than 3 days", "Not required"),
                     selected = feverDuration,
                     onSelect = { feverDuration = it }
                 )
@@ -75,7 +68,7 @@ fun SymptomsScreen(patientId: String, patientName: String, onFinish: () -> Unit)
                 )
             }
             else -> {
-                OutlinedTextField(value = illnessDate, onValueChange = { illnessDate = it }, label = { Text("5. Time of onset of current illness (date)") }, modifier = Modifier.fillMaxWidth())
+                FormField(value = illnessDate, onValueChange = { illnessDate = it }, label = "5. Time of onset of current illness (date)")
                 RadioGroup(
                     title = "6. Any breathing difficulty, chest pain or confusion?",
                     options = listOf("Yes", "No"),
@@ -83,7 +76,7 @@ fun SymptomsScreen(patientId: String, patientName: String, onFinish: () -> Unit)
                     onSelect = { breathingDifficulty = it }
                 )
                 RadioGroup(
-                    title = "7. Able to go for testing today if advised?",
+                    title = "7. Are you able to go for testing to the health centre today if advised?",
                     options = listOf("Yes", "No", "Not required"),
                     selected = ableForTesting,
                     onSelect = { ableForTesting = it }

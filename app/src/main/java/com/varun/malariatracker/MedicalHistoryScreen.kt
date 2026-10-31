@@ -3,34 +3,42 @@ package com.varun.malariatracker
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 
 /**
- * Section II – past history of malaria. Every question after Q1 is about the past
- * malaria episode, so it is shown (and saved) only when Q1 is "Yes".
+ * Section II – past history of malaria. Q2–Q8 are about the past episode, so they are
+ * shown (and saved) only when Q1 is "Yes". The last page holds the four general
+ * questions (mobile brand, qualification, repellent, mosquito net), which always show.
  */
 @Composable
-fun MedicalHistoryScreen(patientId: String, patientName: String, onNavigateNext: (String) -> Unit) {
-    var page by rememberSaveable { mutableStateOf(0) }
+fun MedicalHistoryScreen(draftKey: String, patientId: String, patientName: String, onNavigateNext: () -> Unit) {
+    val context = LocalContext.current
+    var page by rememberDraftPage(draftKey, "med.page")
 
-    var diagnosedMalaria by rememberSaveable { mutableStateOf("") }
-    var malariaTimes by rememberSaveable { mutableStateOf("") }
-    var lastDetection by rememberSaveable { mutableStateOf("") }
-    val placeOptions = listOf("UHC/PHC", "Private clinic", "Govt hospital", "Pharmacy")
-    var treatmentPlaces by rememberSaveable { mutableStateOf(setOf<String>()) }
-    var otherTreatmentPlace by rememberSaveable { mutableStateOf("") }
-    var diagnosisTest by rememberSaveable { mutableStateOf("") }
-    var sameDayReport by rememberSaveable { mutableStateOf("") }
+    var diagnosedMalaria by rememberDraft(draftKey, "med.diagnosed")
+    var malariaTimes by rememberDraft(draftKey, "med.times")
+    var lastDetection by rememberDraft(draftKey, "med.lastDetection")
+    val placeOptions = listOf("UHC / PHC", "Private clinic", "Govt. Hospital", "Pharmacy")
+    var treatmentPlaces by rememberDraftSet(draftKey, "med.places")
+    var otherTreatmentPlace by rememberDraft(draftKey, "med.otherPlace")
+    var diagnosisTest by rememberDraft(draftKey, "med.test")
+    var sameDayReport by rememberDraft(draftKey, "med.sameDay")
     val methodOptions = listOf("RDT (rapid test)", "Microscopy", "Not sure")
-    var reportMethods by rememberSaveable { mutableStateOf(setOf<String>()) }
-    var medicationPeriod by rememberSaveable { mutableStateOf("") }
-    var medicineCourseCompleted by rememberSaveable { mutableStateOf("") }
+    var reportMethods by rememberDraftSet(draftKey, "med.methods")
+    var medicationPeriod by rememberDraft(draftKey, "med.medication")
+    var medicineCourseCompleted by rememberDraft(draftKey, "med.course")
+    var mobileBrand by rememberDraft(draftKey, "med.mobileBrand")
+    var qualification by rememberDraft(draftKey, "med.qualification")
+    var repellent by rememberDraft(draftKey, "med.repellent")
+    var mosquitoNet by rememberDraft(draftKey, "med.mosquitoNet")
 
     val diagnosed = diagnosedMalaria == "Yes"
+    val pageCount = if (diagnosed) 3 else 2
+    val generalPage = pageCount - 1
 
     FormPager(
-        pageCount = if (diagnosed) 2 else 1,
+        pageCount = pageCount,
         page = page,
         onPageChange = { page = it },
         finishLabel = "Continue to Travel History",
@@ -40,19 +48,19 @@ fun MedicalHistoryScreen(patientId: String, patientName: String, onNavigateNext:
             fun ifDiagnosed(v: String) = if (diagnosed) v else ""
             val tested = diagnosed && diagnosisTest == "Yes"
             val sameDay = tested && sameDayReport == "Yes"
-
-            val places = withOther(joinInOrder(placeOptions, treatmentPlaces), otherTreatmentPlace)
-                .let { ifDiagnosed(it) }
+            val places = ifDiagnosed(withOther(joinInOrder(placeOptions, treatmentPlaces), otherTreatmentPlace))
             val methods = if (sameDay) joinInOrder(methodOptions, reportMethods) else ""
 
             val rowData = listOf(
                 patientId, diagnosedMalaria,
                 ifDiagnosed(malariaTimes), ifDiagnosed(lastDetection), places,
                 ifDiagnosed(diagnosisTest), if (tested) sameDayReport else "", methods,
-                ifDiagnosed(medicationPeriod), ifDiagnosed(medicineCourseCompleted)
+                ifDiagnosed(medicationPeriod), ifDiagnosed(medicineCourseCompleted),
+                mobileBrand, qualification, repellent, mosquitoNet
             ).joinToString(",") { CsvHelper.escapeCsv(it) }
 
-            onNavigateNext(rowData)
+            Drafts.put(context, draftKey, "row:MedicalHistory", rowData)
+            onNavigateNext()
         },
         header = {
             Text(text = "Medical History", style = MaterialTheme.typography.headlineMedium)
@@ -60,8 +68,14 @@ fun MedicalHistoryScreen(patientId: String, patientName: String, onNavigateNext:
             Text(text = "ID: $patientId", color = MaterialTheme.colorScheme.secondary)
         }
     ) { p ->
-        when (p) {
-            0 -> {
+        when {
+            p == generalPage -> {
+                FormField(value = mobileBrand, onValueChange = { mobileBrand = it }, label = "Mobile Brand")
+                FormField(value = qualification, onValueChange = { qualification = it }, label = "Qualification")
+                RadioGroup(title = "Repellent", options = listOf("Yes", "No"), selected = repellent, onSelect = { repellent = it })
+                RadioGroup(title = "Mosquito Net", options = listOf("Yes", "No"), selected = mosquitoNet, onSelect = { mosquitoNet = it })
+            }
+            p == 0 -> {
                 RadioGroup(
                     title = "1. Diagnosed with malaria?",
                     options = listOf("Yes", "No", "Don't know"),
@@ -69,20 +83,20 @@ fun MedicalHistoryScreen(patientId: String, patientName: String, onNavigateNext:
                     onSelect = { diagnosedMalaria = it }
                 )
                 if (diagnosed) {
-                    OutlinedTextField(value = malariaTimes, onValueChange = { malariaTimes = it }, label = { Text("2. Number of times in last 2 years") }, modifier = Modifier.fillMaxWidth())
+                    FormField(value = malariaTimes, onValueChange = { malariaTimes = it }, label = "2. If yes, how many times in the last 2 years?", keyboardType = KeyboardType.Number)
                     RadioGroup(
-                        title = "3. Date of last malaria detection",
-                        options = listOf("<1 year", "1 to 2 year", "Don't know"),
+                        title = "3. Date of last malaria detection (month/year)",
+                        options = listOf("≤ 1 Year", "1–2 Years", "Don't know"),
                         selected = lastDetection,
                         onSelect = { lastDetection = it }
                     )
                     CheckboxGroup(
-                        title = "4. Place where treatment received",
+                        title = "4. Place where you received treatment for last malaria",
                         options = placeOptions,
                         selected = treatmentPlaces,
                         onToggle = { opt, on -> treatmentPlaces = treatmentPlaces.toggle(opt, on) }
                     )
-                    OutlinedTextField(value = otherTreatmentPlace, onValueChange = { otherTreatmentPlace = it }, label = { Text("Other treatment place (optional)") }, modifier = Modifier.fillMaxWidth())
+                    FormField(value = otherTreatmentPlace, onValueChange = { otherTreatmentPlace = it }, label = "Others")
                 }
             }
             else -> {
@@ -94,14 +108,14 @@ fun MedicalHistoryScreen(patientId: String, patientName: String, onNavigateNext:
                 )
                 if (diagnosisTest == "Yes") {
                     RadioGroup(
-                        title = "6. Received report same day?",
+                        title = "6. Did you receive your test report on the same day?",
                         options = listOf("Yes", "No"),
                         selected = sameDayReport,
                         onSelect = { sameDayReport = it }
                     )
                     if (sameDayReport == "Yes") {
                         CheckboxGroup(
-                            title = "If yes, method used:",
+                            title = "If yes:",
                             options = methodOptions,
                             selected = reportMethods,
                             onToggle = { opt, on -> reportMethods = reportMethods.toggle(opt, on) }
@@ -109,8 +123,8 @@ fun MedicalHistoryScreen(patientId: String, patientName: String, onNavigateNext:
                     }
                 }
                 RadioGroup(
-                    title = "7. Medication period",
-                    options = listOf("3 Days", "14 Days (P. vivax)", "28 Days follow-up", "Not informed / Don't know"),
+                    title = "7. Medication / Treatment given period",
+                    options = listOf("3 Days", "14 Days (P.vivax)", "28 Days follow-up", "Not informed / Don't know"),
                     selected = medicationPeriod,
                     onSelect = { medicationPeriod = it }
                 )

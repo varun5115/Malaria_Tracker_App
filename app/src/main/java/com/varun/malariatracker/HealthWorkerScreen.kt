@@ -7,30 +7,31 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 
 /** Health Worker questionnaire (follow-up & adherence) — saves one row to HealthWorker.csv. */
 @Composable
-fun HealthWorkerScreen(initialName: String = "", initialHealthCentre: String = "", onFinish: () -> Unit) {
+fun HealthWorkerScreen(draftKey: String, initialName: String = "", initialHealthCentre: String = "", onFinish: () -> Unit) {
     var formKey by rememberSaveable { mutableStateOf(0) }
     key(formKey) {
         val context = LocalContext.current
-        var page by rememberSaveable { mutableStateOf(0) }
+        var page by rememberDraftPage(draftKey)
 
         // General & administrative
-        var workerName by rememberSaveable { mutableStateOf(initialName) }
-        var healthCentre by rememberSaveable { mutableStateOf(initialHealthCentre) }
-        var address by rememberSaveable { mutableStateOf("") }
-        var patientName by rememberSaveable { mutableStateOf("") }
-        var patientId by rememberSaveable { mutableStateOf("") }
+        var workerName by rememberDraft(draftKey, "workerName", initialName)
+        var healthCentre by rememberDraft(draftKey, "healthCentre", initialHealthCentre)
+        var address by rememberDraft(draftKey, "address")
+        var patientName by rememberDraft(draftKey, "patientName")
+        var patientMobile by rememberDraft(draftKey, "patientMobile")
 
         // Follow-up & adherence monitoring
-        var followUpPf by rememberSaveable { mutableStateOf(setOf<String>()) }
-        var followUpPv by rememberSaveable { mutableStateOf(setOf<String>()) }
-        var patientStatus by rememberSaveable { mutableStateOf("") }
-        var treatmentDetails by rememberSaveable { mutableStateOf("") }
-        var nonAdherenceReason by rememberSaveable { mutableStateOf("") }
-        var otherReason by rememberSaveable { mutableStateOf("") }
-        var finalOutcome by rememberSaveable { mutableStateOf("") }
+        var followUpPf by rememberDraftSet(draftKey, "followUpPf")
+        var followUpPv by rememberDraftSet(draftKey, "followUpPv")
+        var patientStatus by rememberDraft(draftKey, "patientStatus")
+        var treatmentDetails by rememberDraft(draftKey, "treatmentDetails")
+        var nonAdherenceReason by rememberDraft(draftKey, "nonAdherenceReason")
+        var otherReason by rememberDraft(draftKey, "otherReason")
+        var finalOutcome by rememberDraft(draftKey, "finalOutcome")
 
         // Non-adherence reason only applies when the course was not completed.
         val reasonApplies = treatmentDetails == "Partially completed" || treatmentDetails == "Stopped early"
@@ -41,39 +42,41 @@ fun HealthWorkerScreen(initialName: String = "", initialHealthCentre: String = "
             onPageChange = { page = it },
             finishLabel = "Save Record",
             validatePage = { p ->
-                if (p == 0 && (patientName.isBlank() || patientId.isBlank())) "Please fill in Patient Name and Patient ID" else null
+                if (p == 0) patientError(context, patientName, patientMobile) else null
             },
             onFinish = {
+                val linkedPatientId = CsvHelper.findWorkerByPhone(context, cleanPhone(patientMobile))?.patientId ?: ""
                 val reasonValue = when {
                     !reasonApplies -> ""
                     nonAdherenceReason == "Other" -> withOther(nonAdherenceReason, otherReason)
                     else -> nonAdherenceReason
                 }
 
-                val header = "HealthWorker,HealthCentre,Address,PatientName,PatientID,FollowUpPf,FollowUpPv,PatientStatus,TreatmentDetails,NonAdherenceReason,FinalOutcome"
+                val header = "HealthWorker,HealthCentre,Address,PatientName,PatientMobile,PatientID,FollowUpPf,FollowUpPv,PatientStatus,TreatmentDetails,NonAdherenceReason,FinalOutcome"
                 val rowData = listOf(
-                    workerName, healthCentre, address, patientName, patientId,
+                    workerName, healthCentre, address, patientName, cleanPhone(patientMobile), linkedPatientId,
                     followUpPf.joined(), followUpPv.joined(), patientStatus,
                     treatmentDetails, reasonValue, finalOutcome
                 ).joinToString(",") { CsvHelper.escapeCsv(it) }
 
                 CsvHelper.saveToCsv(context, "HealthWorker", header, rowData)
                 Toast.makeText(context, "Health Worker record saved!", Toast.LENGTH_SHORT).show()
+                Drafts.clear(context, draftKey)
                 onFinish()
             },
             header = { Text(text = "Health Worker Questionnaire", style = MaterialTheme.typography.headlineMedium) },
             footer = {
-                OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = { formKey++ }) { Text("Clear form") }
+                OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = { Drafts.clear(context, draftKey); formKey++ }) { Text("Clear form") }
             }
         ) { p ->
             when (p) {
                 0 -> {
                     Text(text = "General & Administrative Information", style = MaterialTheme.typography.titleMedium)
-                    OutlinedTextField(value = workerName, onValueChange = { workerName = it }, label = { Text("Name of the Health Worker") }, modifier = Modifier.fillMaxWidth())
+                    FormField(value = workerName, onValueChange = { workerName = it }, label = "Name of the Health Worker")
                     LabeledDropdown(label = "Name of the health centre", options = HEALTH_CENTRES, selected = healthCentre, onSelect = { healthCentre = it })
-                    OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Address") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = patientName, onValueChange = { patientName = it }, label = { Text("Patient Name") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = patientId, onValueChange = { patientId = it }, label = { Text("Patient ID") }, modifier = Modifier.fillMaxWidth())
+                    FormField(value = address, onValueChange = { address = it }, label = "Address")
+                    FormField(value = patientName, onValueChange = { patientName = it }, label = "Patient Name")
+                    FormField(value = patientMobile, onValueChange = { patientMobile = it }, label = "Patient Mobile Number", keyboardType = KeyboardType.Phone)
                 }
                 1 -> {
                     Text(text = "Follow-up & Adherence Monitoring", style = MaterialTheme.typography.titleMedium)
@@ -111,7 +114,7 @@ fun HealthWorkerScreen(initialName: String = "", initialHealthCentre: String = "
                             onSelect = { nonAdherenceReason = it }
                         )
                         if (nonAdherenceReason == "Other") {
-                            OutlinedTextField(value = otherReason, onValueChange = { otherReason = it }, label = { Text("Specify reason") }, modifier = Modifier.fillMaxWidth())
+                            FormField(value = otherReason, onValueChange = { otherReason = it }, label = "Specify reason")
                         }
                     }
                     RadioGroup(

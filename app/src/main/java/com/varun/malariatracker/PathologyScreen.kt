@@ -7,37 +7,38 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 
 /** Pathology (Pathologist) questionnaire — saves one row to Pathology.csv. */
 @Composable
-fun PathologyScreen(initialName: String = "", initialHealthCentre: String = "", onFinish: () -> Unit) {
+fun PathologyScreen(draftKey: String, initialName: String = "", initialHealthCentre: String = "", onFinish: () -> Unit) {
     var formKey by rememberSaveable { mutableStateOf(0) }
     key(formKey) {
         val context = LocalContext.current
-        var page by rememberSaveable { mutableStateOf(0) }
+        var page by rememberDraftPage(draftKey)
 
         // General & administrative
-        var pathologistName by rememberSaveable { mutableStateOf(initialName) }
-        var healthCentre by rememberSaveable { mutableStateOf(initialHealthCentre) }
-        var address by rememberSaveable { mutableStateOf("") }
-        var patientName by rememberSaveable { mutableStateOf("") }
-        var patientId by rememberSaveable { mutableStateOf("") }
+        var pathologistName by rememberDraft(draftKey, "pathologistName", initialName)
+        var healthCentre by rememberDraft(draftKey, "healthCentre", initialHealthCentre)
+        var address by rememberDraft(draftKey, "address")
+        var patientName by rememberDraft(draftKey, "patientName")
+        var patientMobile by rememberDraft(draftKey, "patientMobile")
 
         // Laboratory investigation
-        var diagnosisTests by rememberSaveable { mutableStateOf(setOf<String>()) }
-        var rdtResult by rememberSaveable { mutableStateOf("") }
-        var rdtSpecies by rememberSaveable { mutableStateOf("") }
-        var rdtOtherSpecies by rememberSaveable { mutableStateOf("") }
-        var microscopyResult by rememberSaveable { mutableStateOf("") }
-        var microscopySpecies by rememberSaveable { mutableStateOf("") }
-        var microscopyOtherSpecies by rememberSaveable { mutableStateOf("") }
-        var smearType by rememberSaveable { mutableStateOf("") }
+        var diagnosisTests by rememberDraftSet(draftKey, "diagnosisTests")
+        var rdtResult by rememberDraft(draftKey, "rdtResult")
+        var rdtSpecies by rememberDraft(draftKey, "rdtSpecies")
+        var rdtOtherSpecies by rememberDraft(draftKey, "rdtOtherSpecies")
+        var microscopyResult by rememberDraft(draftKey, "microscopyResult")
+        var microscopySpecies by rememberDraft(draftKey, "microscopySpecies")
+        var microscopyOtherSpecies by rememberDraft(draftKey, "microscopyOtherSpecies")
+        var smearType by rememberDraft(draftKey, "smearType")
         // Scheduled follow-up slides
-        var slidesReceived by rememberSaveable { mutableStateOf("") }
-        var anySlidePositive by rememberSaveable { mutableStateOf("") }
-        var positiveSlideDay by rememberSaveable { mutableStateOf("") }
-        var nonReceiptReasons by rememberSaveable { mutableStateOf(setOf<String>()) }
-        var otherReason by rememberSaveable { mutableStateOf("") }
+        var slidesReceived by rememberDraft(draftKey, "slidesReceived")
+        var anySlidePositive by rememberDraft(draftKey, "anySlidePositive")
+        var positiveSlideDay by rememberDraft(draftKey, "positiveSlideDay")
+        var nonReceiptReasons by rememberDraftSet(draftKey, "nonReceiptReasons")
+        var otherReason by rememberDraft(draftKey, "otherReason")
 
         FormPager(
             pageCount = 3,
@@ -45,9 +46,10 @@ fun PathologyScreen(initialName: String = "", initialHealthCentre: String = "", 
             onPageChange = { page = it },
             finishLabel = "Save Record",
             validatePage = { p ->
-                if (p == 0 && (patientName.isBlank() || patientId.isBlank())) "Please fill in Patient Name and Patient ID" else null
+                if (p == 0) patientError(context, patientName, patientMobile) else null
             },
             onFinish = {
+                val linkedPatientId = CsvHelper.findWorkerByPhone(context, cleanPhone(patientMobile))?.patientId ?: ""
                 val rdtSpeciesValue = if (rdtResult == "Positive") withOther(rdtSpecies, rdtOtherSpecies) else ""
                 val microscopySpeciesValue = if (microscopyResult == "Positive") withOther(microscopySpecies, microscopyOtherSpecies) else ""
                 val received = slidesReceived == "Yes"
@@ -55,9 +57,9 @@ fun PathologyScreen(initialName: String = "", initialHealthCentre: String = "", 
                 val dayValue = if (received && anySlidePositive == "Yes") positiveSlideDay else ""
                 val reasonValue = if (slidesReceived == "No") withOther(nonReceiptReasons.joined(), otherReason) else ""
 
-                val header = "Pathologist,HealthCentre,Address,PatientName,PatientID,DiagnosisTest,RDTResult,RDTSpecies,MicroscopyResult,MicroscopySpecies,SmearType,SlidesReceived,AnySlidePositive,PositiveSlideDay,SlideNonReceiptReason"
+                val header = "Pathologist,HealthCentre,Address,PatientName,PatientMobile,PatientID,DiagnosisTest,RDTResult,RDTSpecies,MicroscopyResult,MicroscopySpecies,SmearType,SlidesReceived,AnySlidePositive,PositiveSlideDay,SlideNonReceiptReason"
                 val rowData = listOf(
-                    pathologistName, healthCentre, address, patientName, patientId,
+                    pathologistName, healthCentre, address, patientName, cleanPhone(patientMobile), linkedPatientId,
                     diagnosisTests.joined(), rdtResult, rdtSpeciesValue,
                     microscopyResult, microscopySpeciesValue, smearType,
                     slidesReceived, positiveValue, dayValue, reasonValue
@@ -65,21 +67,22 @@ fun PathologyScreen(initialName: String = "", initialHealthCentre: String = "", 
 
                 CsvHelper.saveToCsv(context, "Pathology", header, rowData)
                 Toast.makeText(context, "Pathology record saved!", Toast.LENGTH_SHORT).show()
+                Drafts.clear(context, draftKey)
                 onFinish()
             },
             header = { Text(text = "Pathology Questionnaire", style = MaterialTheme.typography.headlineMedium) },
             footer = {
-                OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = { formKey++ }) { Text("Clear form") }
+                OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = { Drafts.clear(context, draftKey); formKey++ }) { Text("Clear form") }
             }
         ) { p ->
             when (p) {
                 0 -> {
                     Text(text = "General & Administrative Information", style = MaterialTheme.typography.titleMedium)
-                    OutlinedTextField(value = pathologistName, onValueChange = { pathologistName = it }, label = { Text("Name of the Pathologist") }, modifier = Modifier.fillMaxWidth())
-                    LabeledDropdown(label = "Health centre name", options = HEALTH_CENTRES, selected = healthCentre, onSelect = { healthCentre = it })
-                    OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Address") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = patientName, onValueChange = { patientName = it }, label = { Text("Patient Name") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = patientId, onValueChange = { patientId = it }, label = { Text("Patient ID") }, modifier = Modifier.fillMaxWidth())
+                    FormField(value = pathologistName, onValueChange = { pathologistName = it }, label = "Name of the Pathologist")
+                    LabeledDropdown(label = "Facility Name", options = HEALTH_CENTRES, selected = healthCentre, onSelect = { healthCentre = it })
+                    FormField(value = address, onValueChange = { address = it }, label = "Address")
+                    FormField(value = patientName, onValueChange = { patientName = it }, label = "Patient Name")
+                    FormField(value = patientMobile, onValueChange = { patientMobile = it }, label = "Patient Mobile Number", keyboardType = KeyboardType.Phone)
                 }
                 1 -> {
                     Text(text = "Laboratory Investigation", style = MaterialTheme.typography.titleMedium)
@@ -93,14 +96,14 @@ fun PathologyScreen(initialName: String = "", initialHealthCentre: String = "", 
                     if (rdtResult == "Positive") {
                         RadioGroup(title = "RDT species", options = PARASITE_SPECIES, selected = rdtSpecies, onSelect = { rdtSpecies = it })
                         if (rdtSpecies == "Other") {
-                            OutlinedTextField(value = rdtOtherSpecies, onValueChange = { rdtOtherSpecies = it }, label = { Text("Specify") }, modifier = Modifier.fillMaxWidth())
+                            FormField(value = rdtOtherSpecies, onValueChange = { rdtOtherSpecies = it }, label = "Specify")
                         }
                     }
                     RadioGroup(title = "3. Microscopy Result", options = listOf("Negative", "Positive"), selected = microscopyResult, onSelect = { microscopyResult = it })
                     if (microscopyResult == "Positive") {
                         RadioGroup(title = "Microscopy species", options = listOf("P. falciparum", "P. vivax", "Mixed infection", "Other"), selected = microscopySpecies, onSelect = { microscopySpecies = it })
                         if (microscopySpecies == "Other") {
-                            OutlinedTextField(value = microscopyOtherSpecies, onValueChange = { microscopyOtherSpecies = it }, label = { Text("Specify") }, modifier = Modifier.fillMaxWidth())
+                            FormField(value = microscopyOtherSpecies, onValueChange = { microscopyOtherSpecies = it }, label = "Specify")
                         }
                     }
                     RadioGroup(title = "4. Type of Smear read", options = listOf("Thick", "Thin", "Both"), selected = smearType, onSelect = { smearType = it })
@@ -111,7 +114,7 @@ fun PathologyScreen(initialName: String = "", initialHealthCentre: String = "", 
                     if (slidesReceived == "Yes") {
                         RadioGroup(title = "Did any follow-up day slide come positive for malaria?", options = listOf("Yes", "No"), selected = anySlidePositive, onSelect = { anySlidePositive = it })
                         if (anySlidePositive == "Yes") {
-                            OutlinedTextField(value = positiveSlideDay, onValueChange = { positiveSlideDay = it }, label = { Text("Which follow-up day (e.g. Day 7)") }, modifier = Modifier.fillMaxWidth())
+                            FormField(value = positiveSlideDay, onValueChange = { positiveSlideDay = it }, label = "Which follow-up day (e.g. Day 7)")
                         }
                     } else if (slidesReceived == "No") {
                         CheckboxGroup(
@@ -120,7 +123,7 @@ fun PathologyScreen(initialName: String = "", initialHealthCentre: String = "", 
                             selected = nonReceiptReasons,
                             onToggle = { opt, on -> nonReceiptReasons = nonReceiptReasons.toggle(opt, on) }
                         )
-                        OutlinedTextField(value = otherReason, onValueChange = { otherReason = it }, label = { Text("Other reason (specify)") }, modifier = Modifier.fillMaxWidth())
+                        FormField(value = otherReason, onValueChange = { otherReason = it }, label = "Other reason (specify)")
                     }
                 }
             }

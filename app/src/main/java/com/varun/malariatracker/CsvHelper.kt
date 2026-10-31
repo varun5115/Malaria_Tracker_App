@@ -7,6 +7,13 @@ import android.content.Context
 
 object CsvHelper {
 
+    // Headers for the worker proforma files. The first column is always the Patient ID.
+    const val DEMOGRAPHICS_HEADER = "ID,NimrID,ConstructionSite,PhcUhcName,PhcUhcAddress,GeoLocation,Name,DOB,Age,Gender,Mobile,AltMobile,GovIDType,GovIDNumber,PresentAddr,PermAddr,Language"
+    const val MEDICAL_HEADER = "ID,DiagnosedMalaria,TimesIn2Years,LastDetection,TreatmentPlaces,DiagnosisTestPerformed,SameDayReport,ReportMethods,MedicationPeriod,MedicineCourseCompleted,MobileBrand,Qualification,Repellent,MosquitoNet"
+    const val TRAVEL_HEADER = "ID,StayDuration,TravelledOutsideGoa,VisitedStates,HomeStayDuration,FeverBeforeComing"
+    const val TRAVEL_PLAN_HEADER = "ID,PlanningToVisit,DepartureDate,ReturnDate,PlacesVisited,FeverOrMalaria,TreatmentGiven,FullCourseCompleted,PlaceOfTreatment"
+    const val SYMPTOMS_HEADER = "EntryID,Timestamp,PatientID,FeverToday,Temperature,FeverDuration,AssociatedSymptoms,IllnessDate,BreathingDifficulty,AbleForTesting"
+
     // All CSVs live in the app's external Downloads dir.
     private fun dir(context: Context): File? =
         context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
@@ -65,14 +72,36 @@ object CsvHelper {
         return false
     }
 
+    /**
+     * Replaces the row whose first column equals [key], or appends it if there is none.
+     * Used for records that are written once and later completed or updated.
+     */
+    fun upsertRow(context: Context, fileName: String, header: String, key: String, rowData: String) {
+        try {
+            val file = File(dir(context), "$fileName.csv")
+            val rows = if (file.exists()) file.readLines().drop(1).filter { it.isNotBlank() }.toMutableList() else mutableListOf()
+            val i = rows.indexOfFirst { firstField(it) == key }
+            if (i >= 0) rows[i] = rowData else rows += rowData
+            file.writeText((listOf(header) + rows).joinToString("\n", postfix = "\n"))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     // ---------------------------------------------------------------------------
     // Login index files. Key columns come FIRST and are written unescaped so a
     // simple split(",") lookup is safe even if a later Name/HealthCentre field
     // contains a comma.
     //
-    //   Workers.csv        -> Phone,PatientID,Name
+    //   Workers.csv        -> Phone,PatientID,Status,Name
     //   Professionals.csv  -> Phone,Role,Name,HealthCentre
     // ---------------------------------------------------------------------------
+
+    /** Registered = first six questions saved; Complete = whole proforma saved. */
+    const val STATUS_REGISTERED = "REGISTERED"
+    const val STATUS_COMPLETE = "COMPLETE"
+
+    data class WorkerRecord(val patientId: String, val status: String, val name: String)
 
     /** Sequential patient id: P0001, P0002, ... (padding is a minimum width, not a cap). */
     fun nextPatientId(context: Context): String {
@@ -81,18 +110,18 @@ object CsvHelper {
         return "P" + (count + 1).toString().padStart(4, '0')
     }
 
-    /** Returns the worker's PatientID for this phone, or null if not registered. */
-    fun findWorkerByPhone(context: Context, phone: String): String? {
+    /** The worker registered with this phone, or null if not registered. */
+    fun findWorkerByPhone(context: Context, phone: String): WorkerRecord? {
         val f = File(dir(context), "Workers.csv")
         if (!f.exists()) return null
         return f.readLines().drop(1)
-            .map { it.split(",") }
+            .map { it.split(",", limit = 4) }
             .firstOrNull { it.getOrNull(0) == phone }
-            ?.getOrNull(1)
+            ?.let { WorkerRecord(it.getOrNull(1) ?: "", it.getOrNull(2) ?: "", unescapeCsv(it.getOrNull(3) ?: "")) }
     }
 
-    fun registerWorker(context: Context, phone: String, patientId: String, name: String) {
-        saveToCsv(context, "Workers", "Phone,PatientID,Name", "$phone,$patientId,${escapeCsv(name)}")
+    fun upsertWorker(context: Context, phone: String, patientId: String, status: String, name: String) {
+        upsertRow(context, "Workers", "Phone,PatientID,Status,Name", phone, "$phone,$patientId,$status,${escapeCsv(name)}")
     }
 
     /** All professional roles registered against this phone (empty if none). */

@@ -147,6 +147,19 @@ CREATE TABLE workers (
   govt_id_type    ENUM('aadhaar','voter_id','passport','driving_license','other') NULL,
   govt_id_enc     VARBINARY(255)  NULL,
   languages       JSON            NULL,   -- e.g. ["Hindi","Bengali"]
+  -- registered = first six proforma questions saved; complete = whole proforma saved
+  registration_status ENUM('registered','complete') NOT NULL DEFAULT 'registered',
+  -- proforma header
+  nimr_id           VARCHAR(30)  NULL,
+  construction_site VARCHAR(120) NULL,
+  phc_uhc_name      VARCHAR(100) NULL,
+  phc_uhc_address   VARCHAR(255) NULL,
+  geo_location      VARCHAR(255) NULL,
+  -- Section II general questions
+  mobile_brand      VARCHAR(60)  NULL,
+  qualification     VARCHAR(100) NULL,
+  repellent         BOOLEAN      NULL,
+  mosquito_net      BOOLEAN      NULL,
   created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   created_by      CHAR(36)        NULL,
